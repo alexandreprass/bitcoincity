@@ -1013,17 +1013,24 @@ function NPCCar({ route }: { route: NPCCarRoute }) {
   const bannerRef = useRef<THREE.Mesh>(null)
   const angle = useRef(route.startAngle)
 
-  useFrame((state, delta) => {
+  useFrame((_, delta) => {
     if (!ref.current) return
     const dt = Math.min(delta, 0.05)
     const dir = route.clockwise ? -1 : 1
     angle.current += dir * route.speed * dt
 
-    const x = Math.cos(angle.current) * route.radius
-    const z = Math.sin(angle.current) * route.radius
+    const a = angle.current
+    const x = Math.cos(a) * route.radius
+    const z = Math.sin(a) * route.radius
     ref.current.position.set(x, 0.15, z)
-    // Face direction of travel (tangent to circle)
-    ref.current.rotation.y = angle.current + (route.clockwise ? Math.PI / 2 : -Math.PI / 2)
+
+    // Face tangent direction: car front is +Z local
+    // Tangent to circle at angle a: direction = (-sin(a), cos(a)) for CCW
+    // For CW it's (sin(a), -cos(a))
+    // Use atan2 to get the Y rotation the car needs
+    const tx = route.clockwise ? Math.sin(a) : -Math.sin(a)
+    const tz = route.clockwise ? -Math.cos(a) : Math.cos(a)
+    ref.current.rotation.y = Math.atan2(tx, tz)
 
     // Rotate banner
     if (bannerRef.current) {
