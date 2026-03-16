@@ -418,79 +418,84 @@ function Ground() {
   )
 }
 
-// ==================== RAMPS ====================
+// ==================== RAMPS (REALISTIC) ====================
+
+// Ramp data: position, direction angle, length, max height
+const RAMP_DATA = [
+  { x: 45, z: 0, angle: Math.PI, length: 8, height: 3 },
+  { x: -45, z: 0, angle: 0, length: 8, height: 3 },
+  { x: 0, z: 45, angle: -Math.PI / 2, length: 8, height: 3 },
+  { x: 0, z: -45, angle: Math.PI / 2, length: 8, height: 3 },
+  { x: 32, z: 32, angle: -Math.PI * 0.75 + Math.PI, length: 8, height: 3.5 },
+  { x: -32, z: -32, angle: Math.PI * 0.25 + Math.PI, length: 8, height: 3.5 },
+]
+
+// Returns the ramp height at a given car position, or 0 if not on any ramp
+function getRampHeight(carX: number, carZ: number): number {
+  for (const ramp of RAMP_DATA) {
+    // Vector from ramp center to car
+    const dx = carX - ramp.x
+    const dz = carZ - ramp.z
+    // Project onto ramp direction (forward axis)
+    const forward = Math.cos(ramp.angle) * dx + Math.sin(ramp.angle) * dz
+    // Project onto ramp side axis
+    const side = -Math.sin(ramp.angle) * dx + Math.cos(ramp.angle) * dz
+    // Check if car is within ramp bounds (width=3, length=ramp.length)
+    if (Math.abs(side) < 1.8 && forward > -1 && forward < ramp.length) {
+      // Ramp goes from 0 at start to max height at end, then drops off
+      const t = Math.max(0, forward) / ramp.length
+      if (t <= 1) {
+        return t * ramp.height + 0.15
+      }
+    }
+  }
+  return 0
+}
 
 function Ramps() {
-  const ramps = useMemo(() => {
-    // 6 ramps placed at edges of the city pointing inward
-    return [
-      { pos: [45, 0, 0] as [number, number, number], rot: [0, -Math.PI / 2, 0] as [number, number, number] },
-      { pos: [-45, 0, 0] as [number, number, number], rot: [0, Math.PI / 2, 0] as [number, number, number] },
-      { pos: [0, 0, 45] as [number, number, number], rot: [0, Math.PI, 0] as [number, number, number] },
-      { pos: [0, 0, -45] as [number, number, number], rot: [0, 0, 0] as [number, number, number] },
-      { pos: [32, 0, 32] as [number, number, number], rot: [0, -Math.PI * 0.75, 0] as [number, number, number] },
-      { pos: [-32, 0, -32] as [number, number, number], rot: [0, Math.PI * 0.25, 0] as [number, number, number] },
-    ]
-  }, [])
-
   return (
     <>
-      {ramps.map((ramp, i) => (
-        <group key={`ramp-${i}`} position={ramp.pos} rotation={ramp.rot}>
-          {/* Ramp surface - wedge shape using a custom approach */}
-          <mesh position={[0, 0.75, 0]} rotation={[-0.35, 0, 0]}>
-            <boxGeometry args={[3, 0.15, 4]} />
-            <meshStandardMaterial color="#f7931a" metalness={0.3} roughness={0.6} />
+      {RAMP_DATA.map((ramp, i) => (
+        <group key={`ramp-${i}`} position={[ramp.x, 0, ramp.z]} rotation={[0, ramp.angle, 0]}>
+          {/* Ramp surface - tilted platform */}
+          <mesh position={[0, ramp.height / 2, ramp.length / 2]} rotation={[-Math.atan2(ramp.height, ramp.length), 0, 0]}>
+            <boxGeometry args={[3.2, 0.15, Math.sqrt(ramp.length * ramp.length + ramp.height * ramp.height)]} />
+            <meshStandardMaterial color="#555" metalness={0.4} roughness={0.5} />
           </mesh>
-          {/* Support under ramp */}
-          <mesh position={[0, 0.2, -0.5]}>
-            <boxGeometry args={[3, 0.4, 3]} />
-            <meshStandardMaterial color="#8B4513" metalness={0.2} roughness={0.8} />
+          {/* Side rail left */}
+          <mesh position={[-1.6, ramp.height / 2, ramp.length / 2]} rotation={[-Math.atan2(ramp.height, ramp.length), 0, 0]}>
+            <boxGeometry args={[0.12, 0.4, Math.sqrt(ramp.length * ramp.length + ramp.height * ramp.height)]} />
+            <meshStandardMaterial color="#f7931a" emissive="#ff6600" emissiveIntensity={0.3} />
           </mesh>
-          {/* Side rails */}
-          <mesh position={[-1.5, 0.8, 0]}>
-            <boxGeometry args={[0.1, 0.3, 4]} />
-            <meshStandardMaterial color="#ff8c00" emissive="#ff6600" emissiveIntensity={0.3} />
+          {/* Side rail right */}
+          <mesh position={[1.6, ramp.height / 2, ramp.length / 2]} rotation={[-Math.atan2(ramp.height, ramp.length), 0, 0]}>
+            <boxGeometry args={[0.12, 0.4, Math.sqrt(ramp.length * ramp.length + ramp.height * ramp.height)]} />
+            <meshStandardMaterial color="#f7931a" emissive="#ff6600" emissiveIntensity={0.3} />
           </mesh>
-          <mesh position={[1.5, 0.8, 0]}>
-            <boxGeometry args={[0.1, 0.3, 4]} />
-            <meshStandardMaterial color="#ff8c00" emissive="#ff6600" emissiveIntensity={0.3} />
+          {/* Support pillars */}
+          <mesh position={[0, ramp.height * 0.3, ramp.length * 0.3]}>
+            <boxGeometry args={[2.8, ramp.height * 0.6, 0.3]} />
+            <meshStandardMaterial color="#333" />
           </mesh>
-          {/* Arrow marker on ramp */}
+          <mesh position={[0, ramp.height * 0.5, ramp.length * 0.65]}>
+            <boxGeometry args={[2.8, ramp.height, 0.3]} />
+            <meshStandardMaterial color="#333" />
+          </mesh>
+          {/* Chevron arrows on ramp surface */}
           <Text
-            position={[0, 1.1, 0.5]}
-            rotation={[-0.35, 0, 0]}
-            fontSize={0.8}
+            position={[0, ramp.height * 0.25 + 0.1, ramp.length * 0.3]}
+            rotation={[-Math.atan2(ramp.height, ramp.length), 0, 0]}
+            fontSize={0.6}
             color="#FFD700"
             anchorX="center"
             anchorY="middle"
           >
-            ^
+            {'>>>'}
           </Text>
         </group>
       ))}
     </>
   )
-}
-
-// Ramp collision data for the car
-const RAMP_DATA = [
-  { x: 45, z: 0, angle: -Math.PI / 2 },
-  { x: -45, z: 0, angle: Math.PI / 2 },
-  { x: 0, z: 45, angle: Math.PI },
-  { x: 0, z: -45, angle: 0 },
-  { x: 32, z: 32, angle: -Math.PI * 0.75 },
-  { x: -32, z: -32, angle: Math.PI * 0.25 },
-]
-
-function isOnRamp(carX: number, carZ: number): boolean {
-  for (const ramp of RAMP_DATA) {
-    const dx = carX - ramp.x
-    const dz = carZ - ramp.z
-    const dist = Math.sqrt(dx * dx + dz * dz)
-    if (dist < 3) return true
-  }
-  return false
 }
 
 // ==================== GUARDRAILS ====================
@@ -614,21 +619,67 @@ type GhostCarData = {
   nitro: boolean
 }
 
-function GhostCar({ data }: { data: GhostCarData }) {
+function GhostCar({ data, myCarPos }: { data: GhostCarData; myCarPos: React.MutableRefObject<[number, number, number]> }) {
   const ref = useRef<THREE.Group>(null)
   const targetPos = useRef(new THREE.Vector3(data.x, data.y, data.z))
   const targetRot = useRef(data.rot)
+  const bumpVelocity = useRef(new THREE.Vector3(0, 0, 0))
+  const bumpY = useRef(0)
+  const bumpCooldown = useRef(0)
 
   useEffect(() => {
     targetPos.current.set(data.x, data.y, data.z)
     targetRot.current = data.rot
   }, [data.x, data.y, data.z, data.rot])
 
-  useFrame(() => {
+  useFrame((_, delta) => {
     if (!ref.current) return
-    // Smooth interpolation to target position
-    ref.current.position.lerp(targetPos.current, 0.15)
-    // Smooth rotation
+    const dt = Math.min(delta, 0.05)
+
+    // Check collision with my car
+    const myX = myCarPos.current[0]
+    const myZ = myCarPos.current[2]
+    const dx = ref.current.position.x - myX
+    const dz = ref.current.position.z - myZ
+    const dist = Math.sqrt(dx * dx + dz * dz)
+
+    if (dist < 1.2 && dist > 0.01 && bumpCooldown.current <= 0) {
+      // BUMP! Ghost car flies away
+      const force = 0.8
+      bumpVelocity.current.set(
+        (dx / dist) * force,
+        0.3, // upward launch
+        (dz / dist) * force
+      )
+      bumpCooldown.current = 1.5 // 1.5s cooldown between bumps
+      // Spin the ghost car
+      targetRot.current += Math.PI * 2
+    }
+
+    bumpCooldown.current = Math.max(0, bumpCooldown.current - dt)
+
+    // Apply bump physics
+    if (bumpVelocity.current.length() > 0.001) {
+      ref.current.position.x += bumpVelocity.current.x
+      bumpY.current += bumpVelocity.current.y
+      ref.current.position.z += bumpVelocity.current.z
+      // Gravity on Y
+      bumpVelocity.current.y -= 0.015
+      // Friction on XZ
+      bumpVelocity.current.x *= 0.95
+      bumpVelocity.current.z *= 0.95
+      // Ground clamp
+      if (bumpY.current < 0) {
+        bumpY.current = 0
+        bumpVelocity.current.set(0, 0, 0)
+      }
+      ref.current.position.y = data.y + bumpY.current
+    } else {
+      bumpY.current = 0
+      // Smooth interpolation to target position
+      ref.current.position.lerp(targetPos.current, 0.15)
+    }
+    // Smooth rotation (with spin from bump)
     const diff = targetRot.current - ref.current.rotation.y
     ref.current.rotation.y += diff * 0.15
   })
@@ -695,11 +746,11 @@ function GhostCar({ data }: { data: GhostCarData }) {
   )
 }
 
-function GhostCars({ ghosts }: { ghosts: GhostCarData[] }) {
+function GhostCars({ ghosts, myCarPos }: { ghosts: GhostCarData[]; myCarPos: React.MutableRefObject<[number, number, number]> }) {
   return (
     <>
       {ghosts.map((g) => (
-        <GhostCar key={g.id} data={g} />
+        <GhostCar key={g.id} data={g} myCarPos={myCarPos} />
       ))}
     </>
   )
@@ -707,7 +758,7 @@ function GhostCars({ ghosts }: { ghosts: GhostCarData[] }) {
 
 // ==================== CAR WITH NITRO ====================
 
-function Car({ active, driverName, onNitroUpdate, onPositionUpdate }: { active: boolean; driverName?: string; onNitroUpdate?: (charges: number, recharging: boolean) => void; onPositionUpdate?: (x: number, y: number, z: number, rot: number, nitro: boolean) => void }) {
+function Car({ active, driverName, ghostCarsRef, onNitroUpdate, onPositionUpdate }: { active: boolean; driverName?: string; ghostCarsRef?: React.MutableRefObject<GhostCarData[]>; onNitroUpdate?: (charges: number, recharging: boolean) => void; onPositionUpdate?: (x: number, y: number, z: number, rot: number, nitro: boolean) => void }) {
   const carRef = useRef<THREE.Group>(null)
   const posRef = useRef<[number, number, number]>([0, 0.15, 8])
   const rotRef = useRef(0)
@@ -787,37 +838,61 @@ function Car({ active, driverName, onNitroUpdate, onPositionUpdate }: { active: 
       }
     }
 
-    // Speed multiplier from nitro
-    const nitroMultiplier = nitroActive.current ? 3.0 : 1.0
-    const maxSpeed = 0.15 * nitroMultiplier
+    // Speed multiplier from nitro - HUGE boost (10x)
+    const nitroMultiplier = nitroActive.current ? 10.0 : 1.0
+    const maxSpeed = nitroActive.current ? 1.5 : 0.15
+    const accel = nitroActive.current ? 0.02 : 0.002
 
-    if (k.has('w') || k.has('arrowup')) speed.current = Math.min(speed.current + 0.002 * nitroMultiplier, maxSpeed)
+    if (k.has('w') || k.has('arrowup')) speed.current = Math.min(speed.current + accel, maxSpeed)
     else if (k.has('s') || k.has('arrowdown')) speed.current = Math.max(speed.current - 0.002, -0.08)
     else speed.current *= 0.95
 
     if (Math.abs(speed.current) > 0.001) {
-      if (k.has('a') || k.has('arrowleft')) rotRef.current += 0.03
-      if (k.has('d') || k.has('arrowright')) rotRef.current -= 0.03
+      const steerSpeed = nitroActive.current ? 0.02 : 0.03
+      if (k.has('a') || k.has('arrowleft')) rotRef.current += steerSpeed
+      if (k.has('d') || k.has('arrowright')) rotRef.current -= steerSpeed
     }
 
     let newX = posRef.current[0] + Math.sin(rotRef.current) * speed.current
     let newZ = posRef.current[2] + Math.cos(rotRef.current) * speed.current
     let newY = posRef.current[1]
 
-    // Ramp launch check
-    if (isOnRamp(newX, newZ) && !isAirborne.current && Math.abs(speed.current) > 0.03) {
-      yVelocity.current = 0.15 + Math.abs(speed.current) * 0.8 // Launch force proportional to speed
-      isAirborne.current = true
-    }
-
-    // Vertical physics (gravity)
-    if (isAirborne.current || newY > 0.15) {
-      yVelocity.current -= 0.008 // gravity
+    // Ramp physics: car rides UP the ramp surface
+    const rampH = getRampHeight(newX, newZ)
+    if (rampH > 0 && !isAirborne.current) {
+      // Car is on a ramp - follow the ramp surface
+      newY = rampH
+      // When car reaches the TOP of the ramp (rampH near max), launch it!
+      if (rampH > 2.5 && Math.abs(speed.current) > 0.02) {
+        yVelocity.current = 0.08 + Math.abs(speed.current) * 0.5
+        isAirborne.current = true
+      }
+    } else if (isAirborne.current || newY > 0.16) {
+      // Airborne - apply gravity
+      yVelocity.current -= 0.008
       newY += yVelocity.current
       if (newY <= 0.15) {
         newY = 0.15
         yVelocity.current = 0
         isAirborne.current = false
+      }
+    } else {
+      newY = 0.15
+    }
+
+    // Collision with ghost cars - bump them away
+    if (ghostCarsRef?.current) {
+      for (const ghost of ghostCarsRef.current) {
+        const gx = ghost.x - newX
+        const gz = ghost.z - newZ
+        const dist = Math.sqrt(gx * gx + gz * gz)
+        if (dist < 1.0 && dist > 0.01) {
+          // Push our car back a bit
+          const pushForce = 0.03
+          newX -= (gx / dist) * pushForce
+          newZ -= (gz / dist) * pushForce
+          speed.current *= 0.7
+        }
       }
     }
 
@@ -827,7 +902,6 @@ function Car({ active, driverName, onNitroUpdate, onPositionUpdate }: { active: 
       const clampFactor = CITY_BOUNDARY_RADIUS / distFromCenter
       newX *= clampFactor
       newZ *= clampFactor
-      // Kill some speed on hitting boundary
       speed.current *= 0.5
     }
 
@@ -836,14 +910,14 @@ function Car({ active, driverName, onNitroUpdate, onPositionUpdate }: { active: 
     carRef.current.position.set(newX, newY, newZ)
     carRef.current.rotation.y = rotRef.current
 
-    const camDist = 4
-    const camHeight = 2 + Math.max(0, newY - 0.15) * 0.5
+    const camDist = nitroActive.current ? 6 : 4
+    const camHeight = (nitroActive.current ? 3 : 2) + Math.max(0, newY - 0.15) * 0.5
     const targetCamPos = new THREE.Vector3(
       newX - Math.sin(rotRef.current) * camDist,
       camHeight,
       newZ - Math.cos(rotRef.current) * camDist
     )
-    state.camera.position.lerp(targetCamPos, 0.05)
+    state.camera.position.lerp(targetCamPos, nitroActive.current ? 0.08 : 0.05)
     state.camera.lookAt(newX, 0.5 + Math.max(0, newY - 0.15), newZ)
 
     // Broadcast position every ~100ms
@@ -1061,9 +1135,16 @@ export default function City3D({ buildings, drivingMode = false, driverName = ''
   const [nitroCharges, setNitroCharges] = useState(2)
   const [nitroRecharging, setNitroRecharging] = useState(false)
   const [ghostCars, setGhostCars] = useState<GhostCarData[]>([])
+  const ghostCarsRef = useRef<GhostCarData[]>([])
+  const myCarPosRef = useRef<[number, number, number]>([0, 0.15, 8])
   const [onlineCount, setOnlineCount] = useState(0)
   const channelRef = useRef<any>(null)
   const myIdRef = useRef<string>(Math.random().toString(36).substring(2, 10))
+
+  // Keep ghostCarsRef in sync
+  useEffect(() => {
+    ghostCarsRef.current = ghostCars
+  }, [ghostCars])
 
   // Supabase Realtime Presence for multiplayer
   useEffect(() => {
@@ -1137,6 +1218,7 @@ export default function City3D({ buildings, drivingMode = false, driverName = ''
   }, [])
 
   const handlePositionUpdate = useCallback((x: number, y: number, z: number, rot: number, nitro: boolean) => {
+    myCarPosRef.current = [x, y, z]
     if (channelRef.current) {
       channelRef.current.track({
         name: driverName,
@@ -1195,8 +1277,8 @@ export default function City3D({ buildings, drivingMode = false, driverName = ''
           <Building key={b.id} data={b} onClick={handleBuildingClick} />
         ))}
 
-        <Car active={drivingMode} driverName={driverName} onNitroUpdate={handleNitroUpdate} onPositionUpdate={handlePositionUpdate} />
-        <GhostCars ghosts={ghostCars} />
+        <Car active={drivingMode} driverName={driverName} ghostCarsRef={ghostCarsRef} onNitroUpdate={handleNitroUpdate} onPositionUpdate={handlePositionUpdate} />
+        <GhostCars ghosts={ghostCars} myCarPos={myCarPosRef} />
 
         {!drivingMode && (
           <OrbitControls
