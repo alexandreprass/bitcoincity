@@ -122,7 +122,7 @@ export default function HomePage() {
           </div>
         </div>
       ) : (
-        <City3D buildings={buildings} drivingMode={drivingMode} driverName={userName} />
+        <City3D buildings={buildings} drivingMode={drivingMode} driverName={userName} supabaseClient={supabase} />
       )}
 
       {/* Drive Around button - only for logged in users */}

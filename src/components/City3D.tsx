@@ -602,12 +602,118 @@ function NitroFlame({ active }: { active: boolean }) {
   )
 }
 
-function Car({ active, driverName, onNitroUpdate }: { active: boolean; driverName?: string; onNitroUpdate?: (charges: number, recharging: boolean) => void }) {
+// ==================== GHOST CARS (OTHER PLAYERS) ====================
+
+type GhostCarData = {
+  id: string
+  name: string
+  x: number
+  y: number
+  z: number
+  rot: number
+  nitro: boolean
+}
+
+function GhostCar({ data }: { data: GhostCarData }) {
+  const ref = useRef<THREE.Group>(null)
+  const targetPos = useRef(new THREE.Vector3(data.x, data.y, data.z))
+  const targetRot = useRef(data.rot)
+
+  useEffect(() => {
+    targetPos.current.set(data.x, data.y, data.z)
+    targetRot.current = data.rot
+  }, [data.x, data.y, data.z, data.rot])
+
+  useFrame(() => {
+    if (!ref.current) return
+    // Smooth interpolation to target position
+    ref.current.position.lerp(targetPos.current, 0.15)
+    // Smooth rotation
+    const diff = targetRot.current - ref.current.rotation.y
+    ref.current.rotation.y += diff * 0.15
+  })
+
+  return (
+    <group ref={ref} position={[data.x, data.y, data.z]} rotation={[0, data.rot, 0]}>
+      {/* Ghost car body - slightly transparent */}
+      <mesh position={[0, 0.12, 0]}>
+        <boxGeometry args={[0.4, 0.15, 0.8]} />
+        <meshStandardMaterial color="#f7931a" metalness={0.6} roughness={0.3} transparent opacity={0.85} />
+      </mesh>
+      <mesh position={[0, 0.24, -0.05]}>
+        <boxGeometry args={[0.35, 0.12, 0.4]} />
+        <meshStandardMaterial color="#222" metalness={0.8} roughness={0.2} transparent opacity={0.85} />
+      </mesh>
+      {/* Wheels */}
+      {([[-0.2, 0.05, 0.25], [0.2, 0.05, 0.25], [-0.2, 0.05, -0.25], [0.2, 0.05, -0.25]] as [number, number, number][]).map((pos, i) => (
+        <mesh key={i} position={pos} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.06, 0.06, 0.05]} />
+          <meshStandardMaterial color="#111" />
+        </mesh>
+      ))}
+      {/* Headlights */}
+      <mesh position={[-0.12, 0.12, 0.41]}>
+        <sphereGeometry args={[0.03]} />
+        <meshStandardMaterial emissive="#ffcc00" emissiveIntensity={1.5} />
+      </mesh>
+      <mesh position={[0.12, 0.12, 0.41]}>
+        <sphereGeometry args={[0.03]} />
+        <meshStandardMaterial emissive="#ffcc00" emissiveIntensity={1.5} />
+      </mesh>
+      {/* Taillights */}
+      <mesh position={[-0.15, 0.12, -0.41]}>
+        <sphereGeometry args={[0.025]} />
+        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={1.5} />
+      </mesh>
+      <mesh position={[0.15, 0.12, -0.41]}>
+        <sphereGeometry args={[0.025]} />
+        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={1.5} />
+      </mesh>
+      {/* Nitro flame for ghost */}
+      {data.nitro && (
+        <group>
+          <mesh position={[0, 0.12, -0.65]}>
+            <coneGeometry args={[0.08, 0.4, 6]} />
+            <meshStandardMaterial color="#0066ff" emissive="#0088ff" emissiveIntensity={3} transparent opacity={0.8} />
+          </mesh>
+          <pointLight position={[0, 0.12, -0.7]} intensity={1.5} distance={2} color="#4488ff" />
+        </group>
+      )}
+      {/* Name above ghost car */}
+      <Text
+        position={[0, 0.55, 0]}
+        fontSize={0.15}
+        color="#ffcc00"
+        anchorX="center"
+        anchorY="bottom"
+        outlineWidth={0.02}
+        outlineColor="#000000"
+      >
+        {data.name}
+      </Text>
+    </group>
+  )
+}
+
+function GhostCars({ ghosts }: { ghosts: GhostCarData[] }) {
+  return (
+    <>
+      {ghosts.map((g) => (
+        <GhostCar key={g.id} data={g} />
+      ))}
+    </>
+  )
+}
+
+// ==================== CAR WITH NITRO ====================
+
+function Car({ active, driverName, onNitroUpdate, onPositionUpdate }: { active: boolean; driverName?: string; onNitroUpdate?: (charges: number, recharging: boolean) => void; onPositionUpdate?: (x: number, y: number, z: number, rot: number, nitro: boolean) => void }) {
   const carRef = useRef<THREE.Group>(null)
   const posRef = useRef<[number, number, number]>([0, 0.15, 8])
   const rotRef = useRef(0)
   const speed = useRef(0)
   const keys = useRef<Set<string>>(new Set())
+  const broadcastTimer = useRef(0)
 
   // Nitro state
   const nitroCharges = useRef(2)
@@ -739,6 +845,13 @@ function Car({ active, driverName, onNitroUpdate }: { active: boolean; driverNam
     )
     state.camera.position.lerp(targetCamPos, 0.05)
     state.camera.lookAt(newX, 0.5 + Math.max(0, newY - 0.15), newZ)
+
+    // Broadcast position every ~100ms
+    broadcastTimer.current += dt
+    if (broadcastTimer.current > 0.1) {
+      broadcastTimer.current = 0
+      onPositionUpdate?.(newX, newY, newZ, rotRef.current, nitroActive.current)
+    }
   })
 
   if (!active) return null
@@ -943,10 +1056,76 @@ function NitroUI({ charges, recharging }: { charges: number; recharging: boolean
 
 // ==================== MAIN COMPONENT ====================
 
-export default function City3D({ buildings, drivingMode = false, driverName = '' }: { buildings: BuildingType[]; drivingMode?: boolean; driverName?: string }) {
+export default function City3D({ buildings, drivingMode = false, driverName = '', supabaseClient }: { buildings: BuildingType[]; drivingMode?: boolean; driverName?: string; supabaseClient?: any }) {
   const [selectedBuilding, setSelectedBuilding] = useState<BuildingType | null>(null)
   const [nitroCharges, setNitroCharges] = useState(2)
   const [nitroRecharging, setNitroRecharging] = useState(false)
+  const [ghostCars, setGhostCars] = useState<GhostCarData[]>([])
+  const [onlineCount, setOnlineCount] = useState(0)
+  const channelRef = useRef<any>(null)
+  const myIdRef = useRef<string>(Math.random().toString(36).substring(2, 10))
+
+  // Supabase Realtime Presence for multiplayer
+  useEffect(() => {
+    if (!supabaseClient || !drivingMode || !driverName) {
+      // Clean up when leaving driving mode
+      if (channelRef.current) {
+        channelRef.current.unsubscribe()
+        channelRef.current = null
+      }
+      setGhostCars([])
+      setOnlineCount(0)
+      return
+    }
+
+    const channel = supabaseClient.channel('city-drivers', {
+      config: { presence: { key: myIdRef.current } },
+    })
+
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState()
+        const ghosts: GhostCarData[] = []
+        let count = 0
+        for (const [key, presences] of Object.entries(state)) {
+          count++
+          if (key === myIdRef.current) continue
+          const p = (presences as any[])[0]
+          if (p && typeof p.x === 'number') {
+            ghosts.push({
+              id: key,
+              name: p.name || 'Anon',
+              x: p.x,
+              y: p.y || 0.15,
+              z: p.z,
+              rot: p.rot || 0,
+              nitro: p.nitro || false,
+            })
+          }
+        }
+        setGhostCars(ghosts)
+        setOnlineCount(count)
+      })
+      .subscribe(async (status: string) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({
+            name: driverName,
+            x: 0,
+            y: 0.15,
+            z: 8,
+            rot: 0,
+            nitro: false,
+          })
+        }
+      })
+
+    channelRef.current = channel
+
+    return () => {
+      channel.unsubscribe()
+      channelRef.current = null
+    }
+  }, [supabaseClient, drivingMode, driverName])
 
   const handleBuildingClick = useCallback((b: BuildingType) => {
     setSelectedBuilding(b)
@@ -957,6 +1136,15 @@ export default function City3D({ buildings, drivingMode = false, driverName = ''
     setNitroRecharging(recharging)
   }, [])
 
+  const handlePositionUpdate = useCallback((x: number, y: number, z: number, rot: number, nitro: boolean) => {
+    if (channelRef.current) {
+      channelRef.current.track({
+        name: driverName,
+        x, y, z, rot, nitro,
+      })
+    }
+  }, [driverName])
+
   return (
     <div className="w-full h-screen relative">
       {selectedBuilding && (
@@ -966,6 +1154,13 @@ export default function City3D({ buildings, drivingMode = false, driverName = ''
       {/* Nitro UI overlay when driving */}
       {drivingMode && (
         <NitroUI charges={nitroCharges} recharging={nitroRecharging} />
+      )}
+
+      {/* Online drivers counter */}
+      {drivingMode && onlineCount > 0 && (
+        <div className="fixed top-20 right-6 z-20 bg-black/80 backdrop-blur-sm rounded-lg px-3 py-2 text-center">
+          <p className="text-xs text-green-400 font-bold">{onlineCount} driving</p>
+        </div>
       )}
 
       <Canvas
@@ -1000,7 +1195,8 @@ export default function City3D({ buildings, drivingMode = false, driverName = ''
           <Building key={b.id} data={b} onClick={handleBuildingClick} />
         ))}
 
-        <Car active={drivingMode} driverName={driverName} onNitroUpdate={handleNitroUpdate} />
+        <Car active={drivingMode} driverName={driverName} onNitroUpdate={handleNitroUpdate} onPositionUpdate={handlePositionUpdate} />
+        <GhostCars ghosts={ghostCars} />
 
         {!drivingMode && (
           <OrbitControls
