@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createServerSupabase } from '@/lib/supabase-server'
 import { VERIFICATION_WALLET } from '@/lib/bitcoin'
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 export async function POST(request: Request) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -12,7 +13,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Server not configured' }, { status: 500 })
   }
 
-  const supabase = createClient(url, serviceKey)
+  const supabase = createServerSupabase(url, serviceKey)
 
   let body: any
   try {
@@ -27,10 +28,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    // Check recent transactions from this address
     const res = await fetch(
       `https://blockchain.info/rawaddr/${btcAddress}?limit=20`,
-      { headers: { 'User-Agent': 'BitcoinCity/1.0' } }
+      { cache: 'no-store', headers: { 'User-Agent': 'BitcoinCity/1.0' } }
     )
 
     if (!res.ok) {

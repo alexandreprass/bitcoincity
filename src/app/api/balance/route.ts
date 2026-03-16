@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { isValidBtcAddress } from '@/lib/bitcoin'
 
+export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const address = searchParams.get('address')
@@ -13,8 +16,8 @@ export async function GET(request: Request) {
     const res = await fetch(
       `https://blockchain.info/q/addressbalance/${address}?confirmations=1`,
       {
+        cache: 'no-store',
         headers: { 'User-Agent': 'BitcoinCity/1.0' },
-        next: { revalidate: 3600 },
       }
     )
 

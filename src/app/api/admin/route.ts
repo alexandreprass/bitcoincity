@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createServerSupabase } from '@/lib/supabase-server'
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 function checkAdmin(request: Request): boolean {
   const authHeader = request.headers.get('authorization')
@@ -22,7 +23,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Server not configured' }, { status: 500 })
   }
 
-  const supabase = createClient(url, serviceKey)
+  const supabase = createServerSupabase(url, serviceKey)
 
   const { data: buildings, error } = await supabase
     .from('buildings')
@@ -48,7 +49,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Server not configured' }, { status: 500 })
   }
 
-  const supabase = createClient(url, serviceKey)
+  const supabase = createServerSupabase(url, serviceKey)
 
   let body: any
   try {
@@ -83,7 +84,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Server not configured' }, { status: 500 })
   }
 
-  const supabase = createClient(url, serviceKey)
+  const supabase = createServerSupabase(url, serviceKey)
 
   const { searchParams } = new URL(request.url)
   const userId = searchParams.get('userId')

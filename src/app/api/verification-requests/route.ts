@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createServerSupabase } from '@/lib/supabase-server'
 
 export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 function checkAdmin(request: Request): boolean {
   const authHeader = request.headers.get('authorization')
@@ -14,7 +15,7 @@ function getSupabase() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
   if (!url || !serviceKey) return null
-  return createClient(url, serviceKey)
+  return createServerSupabase(url, serviceKey)
 }
 
 // GET - list pending verification requests (admin only)
@@ -106,7 +107,7 @@ export async function POST(request: Request) {
   return NextResponse.json({ success: true })
 }
 
-// DELETE - admin: delete a request OR approve it
+// DELETE - admin: delete a request
 export async function DELETE(request: Request) {
   if (!checkAdmin(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
