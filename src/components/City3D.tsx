@@ -16,8 +16,8 @@ function tierToHeight(tier: number): number {
 const BUILDING_WIDTH = 2.2 // fixed width for all buildings
 const FLOOR_HEIGHT = 0.55 // each visual floor height
 const WINDOW_COLS = 5 // exactly 5 windows per side
-const CITY_BOUNDARY_RADIUS = 57 // invisible wall radius
-const GUARDRAIL_RADIUS = 55 // visible guardrail radius
+const CITY_BOUNDARY_RADIUS = 62 // invisible wall radius
+const GUARDRAIL_RADIUS = 58 // visible guardrail radius
 
 // Modern glass/steel color palette per tier
 function getTierStyle(tier: number) {
@@ -921,43 +921,72 @@ function Car({ active, driverName, ghostCarsRef, onNitroUpdate, onPositionUpdate
 }
 
 function Roads() {
+  const ROAD_RADII = [8, 14, 20, 27, 35, 43, 52]
+  const SPOKE_COUNT = 16
+
   return (
     <group>
-      {/* Circular roads with lane markings */}
-      {[10, 20, 32, 45].map((radius) => (
+      {/* Circular roads - many rings covering the whole city */}
+      {ROAD_RADII.map((radius) => (
         <group key={radius}>
+          {/* Road surface */}
           <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]}>
-            <ringGeometry args={[radius - 0.4, radius + 0.4, 64]} />
+            <ringGeometry args={[radius - 0.6, radius + 0.6, 96]} />
             <meshStandardMaterial color="#1e1e2a" />
           </mesh>
-          {/* Lane line */}
-          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>
-            <ringGeometry args={[radius - 0.03, radius + 0.03, 64]} />
+          {/* Center lane line (dashed look via thin ring) */}
+          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]}>
+            <ringGeometry args={[radius - 0.04, radius + 0.04, 96]} />
+            <meshStandardMaterial color="#444455" />
+          </mesh>
+          {/* Outer edge lines */}
+          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.011, 0]}>
+            <ringGeometry args={[radius + 0.5, radius + 0.58, 96]} />
+            <meshStandardMaterial color="#333340" />
+          </mesh>
+          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.011, 0]}>
+            <ringGeometry args={[radius - 0.58, radius - 0.5, 96]} />
             <meshStandardMaterial color="#333340" />
           </mesh>
         </group>
       ))}
-      {/* Radial roads - 12 spokes for proper street grid between buildings */}
-      {Array.from({ length: 12 }, (_, i) => (i / 12) * Math.PI * 2).map((angle, i) => (
-        <mesh
-          key={`r-${i}`}
-          rotation={[-Math.PI / 2, 0, angle]}
-          position={[Math.cos(angle) * 27, 0.006, Math.sin(angle) * 27]}
-        >
-          <planeGeometry args={[0.6, 54]} />
-          <meshStandardMaterial color="#1e1e2a" />
-        </mesh>
+      {/* Radial roads - spokes connecting the rings */}
+      {Array.from({ length: SPOKE_COUNT }, (_, i) => (i / SPOKE_COUNT) * Math.PI * 2).map((angle, i) => (
+        <group key={`spoke-${i}`}>
+          <mesh
+            rotation={[-Math.PI / 2, 0, angle]}
+            position={[Math.cos(angle) * 30, 0.006, Math.sin(angle) * 30]}
+          >
+            <planeGeometry args={[1.0, 60]} />
+            <meshStandardMaterial color="#1e1e2a" />
+          </mesh>
+          {/* Lane line on spoke */}
+          <mesh
+            rotation={[-Math.PI / 2, 0, angle]}
+            position={[Math.cos(angle) * 30, 0.012, Math.sin(angle) * 30]}
+          >
+            <planeGeometry args={[0.06, 60]} />
+            <meshStandardMaterial color="#444455" />
+          </mesh>
+        </group>
       ))}
     </group>
   )
 }
 
+// ==================== STREET LIGHT POLES ====================
+
 function Streetlights() {
   const lights = useMemo(() => {
     const arr: [number, number][] = []
-    for (let i = 0; i < 12; i++) {
-      const angle = (i / 12) * Math.PI * 2
-      arr.push([Math.cos(angle) * 10, Math.sin(angle) * 10])
+    // Lights along each ring road
+    const radii = [8, 14, 20, 27, 35, 43, 52]
+    for (const r of radii) {
+      const count = Math.floor(r * 0.8)
+      for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 2
+        arr.push([Math.cos(angle) * (r + 0.9), Math.sin(angle) * (r + 0.9)])
+      }
     }
     return arr
   }, [])
@@ -966,16 +995,221 @@ function Streetlights() {
     <>
       {lights.map(([x, z], i) => (
         <group key={i} position={[x, 0, z]}>
-          <mesh position={[0, 1.2, 0]}>
-            <cylinderGeometry args={[0.03, 0.04, 2.4]} />
-            <meshStandardMaterial color="#444" metalness={0.6} />
+          {/* Pole */}
+          <mesh position={[0, 1.5, 0]}>
+            <cylinderGeometry args={[0.03, 0.05, 3.0]} />
+            <meshStandardMaterial color="#555" metalness={0.7} roughness={0.3} />
           </mesh>
-          <pointLight position={[0, 2.3, 0]} intensity={0.3} distance={6} color="#ffeecc" />
-          <mesh position={[0, 2.4, 0]}>
-            <sphereGeometry args={[0.08]} />
-            <meshStandardMaterial color="#ffffcc" emissive="#ffffaa" emissiveIntensity={1} />
+          {/* Arm extending over road */}
+          <mesh position={[0, 2.9, -0.3]} rotation={[0.3, 0, 0]}>
+            <cylinderGeometry args={[0.02, 0.02, 0.7]} />
+            <meshStandardMaterial color="#555" metalness={0.7} />
           </mesh>
+          {/* Light fixture */}
+          <mesh position={[0, 2.85, -0.55]}>
+            <boxGeometry args={[0.12, 0.04, 0.2]} />
+            <meshStandardMaterial color="#ffffcc" emissive="#ffffaa" emissiveIntensity={1.5} />
+          </mesh>
+          {/* Light cone */}
+          <pointLight position={[0, 2.8, -0.55]} intensity={0.2} distance={5} color="#ffeecc" />
         </group>
+      ))}
+    </>
+  )
+}
+
+// ==================== NPC FERRARI CARS ====================
+
+type NPCCarRoute = {
+  radius: number
+  speed: number
+  startAngle: number
+  clockwise: boolean
+  color: string
+}
+
+function NPCCar({ route }: { route: NPCCarRoute }) {
+  const ref = useRef<THREE.Group>(null)
+  const bannerRef = useRef<THREE.Mesh>(null)
+  const angle = useRef(route.startAngle)
+
+  useFrame((state, delta) => {
+    if (!ref.current) return
+    const dt = Math.min(delta, 0.05)
+    const dir = route.clockwise ? -1 : 1
+    angle.current += dir * route.speed * dt
+
+    const x = Math.cos(angle.current) * route.radius
+    const z = Math.sin(angle.current) * route.radius
+    ref.current.position.set(x, 0.15, z)
+    // Face direction of travel (tangent to circle)
+    ref.current.rotation.y = angle.current + (route.clockwise ? Math.PI / 2 : -Math.PI / 2)
+
+    // Rotate banner
+    if (bannerRef.current) {
+      bannerRef.current.rotation.y += dt * 2.5
+    }
+  })
+
+  return (
+    <group ref={ref}>
+      {/* Ferrari body - low sleek */}
+      <mesh position={[0, 0.08, 0]}>
+        <boxGeometry args={[0.35, 0.1, 0.9]} />
+        <meshStandardMaterial color={route.color} metalness={0.8} roughness={0.2} />
+      </mesh>
+      {/* Hood slope */}
+      <mesh position={[0, 0.1, 0.35]}>
+        <boxGeometry args={[0.32, 0.06, 0.25]} />
+        <meshStandardMaterial color={route.color} metalness={0.8} roughness={0.2} />
+      </mesh>
+      {/* Cabin - low profile */}
+      <mesh position={[0, 0.18, -0.05]}>
+        <boxGeometry args={[0.3, 0.08, 0.3]} />
+        <meshStandardMaterial color="#111" metalness={0.9} roughness={0.1} />
+      </mesh>
+      {/* Rear spoiler */}
+      <mesh position={[0, 0.16, -0.4]}>
+        <boxGeometry args={[0.35, 0.02, 0.08]} />
+        <meshStandardMaterial color={route.color} metalness={0.7} />
+      </mesh>
+      {/* Spoiler supports */}
+      <mesh position={[-0.12, 0.14, -0.4]}>
+        <boxGeometry args={[0.02, 0.04, 0.02]} />
+        <meshStandardMaterial color="#222" />
+      </mesh>
+      <mesh position={[0.12, 0.14, -0.4]}>
+        <boxGeometry args={[0.02, 0.04, 0.02]} />
+        <meshStandardMaterial color="#222" />
+      </mesh>
+      {/* Wheels */}
+      {([[-0.18, 0.04, 0.28], [0.18, 0.04, 0.28], [-0.18, 0.04, -0.28], [0.18, 0.04, -0.28]] as [number, number, number][]).map((pos, i) => (
+        <mesh key={i} position={pos} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.05, 0.05, 0.04]} />
+          <meshStandardMaterial color="#111" />
+        </mesh>
+      ))}
+      {/* Headlights */}
+      <mesh position={[-0.1, 0.08, 0.46]}>
+        <sphereGeometry args={[0.025]} />
+        <meshStandardMaterial emissive="#ffffff" emissiveIntensity={2} />
+      </mesh>
+      <mesh position={[0.1, 0.08, 0.46]}>
+        <sphereGeometry args={[0.025]} />
+        <meshStandardMaterial emissive="#ffffff" emissiveIntensity={2} />
+      </mesh>
+      {/* Taillights */}
+      <mesh position={[-0.12, 0.08, -0.46]}>
+        <sphereGeometry args={[0.02]} />
+        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={2} />
+      </mesh>
+      <mesh position={[0.12, 0.08, -0.46]}>
+        <sphereGeometry args={[0.02]} />
+        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={2} />
+      </mesh>
+
+      {/* Rotating Bitcoin City Banner (cylinder on top) */}
+      <group position={[0, 0.55, 0]}>
+        {/* Pole connecting car to banner */}
+        <mesh position={[0, -0.15, 0]}>
+          <cylinderGeometry args={[0.015, 0.015, 0.25]} />
+          <meshStandardMaterial color="#666" metalness={0.8} />
+        </mesh>
+        {/* Rotating banner cylinder */}
+        <mesh ref={bannerRef} position={[0, 0.05, 0]}>
+          <cylinderGeometry args={[0.2, 0.2, 0.25, 16, 1, true]} />
+          <meshStandardMaterial
+            color="#f7931a"
+            emissive="#f7931a"
+            emissiveIntensity={0.4}
+            transparent
+            opacity={0.7}
+            side={THREE.DoubleSide}
+          />
+        </mesh>
+        {/* Bitcoin City text on banner */}
+        <Text
+          position={[0, 0.05, 0.21]}
+          fontSize={0.08}
+          color="#ffffff"
+          anchorX="center"
+          anchorY="middle"
+          outlineWidth={0.01}
+          outlineColor="#000"
+        >
+          BITCOIN CITY
+        </Text>
+        <Text
+          position={[0, 0.05, -0.21]}
+          fontSize={0.08}
+          color="#ffffff"
+          anchorX="center"
+          anchorY="middle"
+          outlineWidth={0.01}
+          outlineColor="#000"
+          rotation={[0, Math.PI, 0]}
+        >
+          BITCOIN CITY
+        </Text>
+        {/* BTC symbol on sides */}
+        <Text
+          position={[0.21, 0.05, 0]}
+          fontSize={0.12}
+          color="#ffffff"
+          anchorX="center"
+          anchorY="middle"
+          rotation={[0, Math.PI / 2, 0]}
+        >
+          ₿
+        </Text>
+        <Text
+          position={[-0.21, 0.05, 0]}
+          fontSize={0.12}
+          color="#ffffff"
+          anchorX="center"
+          anchorY="middle"
+          rotation={[0, -Math.PI / 2, 0]}
+        >
+          ₿
+        </Text>
+      </group>
+    </group>
+  )
+}
+
+function NPCCars() {
+  const routes = useMemo<NPCCarRoute[]>(() => {
+    const ferrariColors = ['#FF2800', '#FFD700', '#000000', '#FFFFFF', '#1E90FF', '#FF4500']
+    const arr: NPCCarRoute[] = []
+    // Cars on different ring roads
+    const rings = [
+      { radius: 14, count: 3, speed: 0.15 },
+      { radius: 20, count: 4, speed: 0.12 },
+      { radius: 27, count: 4, speed: 0.1 },
+      { radius: 35, count: 5, speed: 0.08 },
+      { radius: 43, count: 5, speed: 0.07 },
+      { radius: 52, count: 3, speed: 0.06 },
+    ]
+    let idx = 0
+    for (const ring of rings) {
+      for (let i = 0; i < ring.count; i++) {
+        arr.push({
+          radius: ring.radius,
+          speed: ring.speed + (Math.random() * 0.03 - 0.015),
+          startAngle: (i / ring.count) * Math.PI * 2 + Math.random() * 0.3,
+          clockwise: i % 2 === 0,
+          color: ferrariColors[idx % ferrariColors.length],
+        })
+        idx++
+      }
+    }
+    return arr
+  }, [])
+
+  return (
+    <>
+      {routes.map((route, i) => (
+        <NPCCar key={`npc-${i}`} route={route} />
       ))}
     </>
   )
@@ -1203,6 +1437,7 @@ export default function City3D({ buildings, drivingMode = false, driverName = ''
         <Ground />
         <Roads />
         <Streetlights />
+        <NPCCars />
         <Guardrails />
 
         {buildings.map((b) => (

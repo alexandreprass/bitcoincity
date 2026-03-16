@@ -192,8 +192,13 @@ export default function DashboardPage() {
     return () => { if (chatPollRef.current) clearInterval(chatPollRef.current) }
   }, [loadChat])
 
+  // Only auto-scroll when USER sends a message (not on poll updates)
+  const userSentMessage = useRef(false)
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    if (userSentMessage.current) {
+      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+      userSentMessage.current = false
+    }
   }, [chatMessages])
 
   const handleSendChat = async () => {
@@ -227,6 +232,7 @@ export default function DashboardPage() {
       const data = await res.json()
       if (res.ok) {
         setChatInput('')
+        userSentMessage.current = true
         await loadChat()
       } else {
         setChatError(data.error || 'Failed to send')
@@ -524,10 +530,10 @@ export default function DashboardPage() {
 
             {/* City Chat */}
             <div className="md:col-span-2 card-dark">
-              <h2 className="text-lg font-semibold text-gray-300 mb-4">City Chat</h2>
+              <h2 className="text-lg font-semibold text-gray-300 mb-4">💬 City Chat</h2>
               <div className="bg-gray-900/50 rounded-lg border border-gray-800 h-64 overflow-y-auto p-3 mb-3 space-y-2">
                 {chatMessages.length === 0 && (
-                  <p className="text-gray-600 text-sm text-center mt-8">No messages yet. Be the first to say something!</p>
+                  <p className="text-gray-600 text-sm text-center mt-8">🏙️ No messages yet. Be the first to say something!</p>
                 )}
                 {chatMessages.map((msg, i) => (
                   <div key={msg.id || i} className="text-sm">
