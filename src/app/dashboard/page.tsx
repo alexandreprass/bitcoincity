@@ -198,6 +198,20 @@ export default function DashboardPage() {
 
   const handleSendChat = async () => {
     if (!chatInput.trim() || !userId || !profile) return
+
+    // Client-side validation
+    const msg = chatInput.trim()
+    const linkCheck = /(https?:\/\/|www\.|\.com|\.io|\.xyz|\.org|\.net|\.app|\.dev|\.co|\.fun|\.ai|\.gg|\.site|\.online|\.click)/i
+    if (linkCheck.test(msg)) {
+      setChatError('Links are not allowed.')
+      return
+    }
+    const solanaCheck = /[1-9A-HJ-NP-Za-km-z]{32,44}/
+    if (solanaCheck.test(msg)) {
+      setChatError('Contract addresses are not allowed.')
+      return
+    }
+
     setSendingChat(true)
     setChatError('')
     try {

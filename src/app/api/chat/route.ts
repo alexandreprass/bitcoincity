@@ -11,7 +11,7 @@ function getSupabase() {
   return createServerSupabase(url, serviceKey)
 }
 
-// GET - fetch recent chat messages
+// GET - fetch recent chat messages (last 24h only)
 export async function GET(request: Request) {
   const supabase = getSupabase()
   if (!supabase) {
@@ -21,9 +21,17 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
   const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 100)
 
+  // Auto-cleanup: delete messages older than 24 hours
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  await supabase
+    .from('chat_messages')
+    .delete()
+    .lt('created_at', cutoff)
+
   const { data, error } = await supabase
     .from('chat_messages')
     .select('*')
+    .gte('created_at', cutoff)
     .order('created_at', { ascending: false })
     .limit(limit)
 
@@ -75,6 +83,26 @@ export async function POST(request: Request) {
   }
 
   const trimmed = message.trim().slice(0, 500)
+
+  // Block links (http, https, www, .com, .io, .xyz, .org, .net, etc.)
+  const linkPatterns = [
+    /https?:\/\//i,
+    /www\./i,
+    /\.[a-z]{2,6}\//i,
+    /\.(com|io|xyz|org|net|app|dev|co|me|gg|fun|ai|cc|tv|ly|to|link|site|online|click)\b/i,
+  ]
+  for (const pattern of linkPatterns) {
+    if (pattern.test(trimmed)) {
+      return NextResponse.json({ error: 'Links are not allowed in chat.' }, { status: 400 })
+    }
+  }
+
+  // Block Solana contract addresses (base58, 32-44 chars of alphanumeric)
+  // Solana addresses are typically 32-44 chars of [1-9A-HJ-NP-Za-km-z]
+  const solanaPattern = /[1-9A-HJ-NP-Za-km-z]{32,44}/
+  if (solanaPattern.test(trimmed)) {
+    return NextResponse.json({ error: 'Contract addresses are not allowed in chat.' }, { status: 400 })
+  }
 
   const { error } = await supabase
     .from('chat_messages')
