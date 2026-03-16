@@ -7,6 +7,13 @@ import { satoshisToBtc, getBuildingLabel, VERIFICATION_WALLET } from '@/lib/bitc
 import Navbar from '@/components/Navbar'
 import Link from 'next/link'
 
+const BUILDING_COLORS = [
+  '#E74C3C', '#E67E22', '#F1C40F', '#2ECC71', '#1ABC9C',
+  '#3498DB', '#9B59B6', '#E91E63', '#00BCD4', '#FF5722',
+  '#795548', '#607D8B', '#8BC34A', '#FF9800', '#673AB7',
+  '#009688', '#F44336', '#4CAF50', '#2196F3', '#FFC107',
+]
+
 export default function DashboardPage() {
   const router = useRouter()
   const [loading, setLoading] = useState(true)
@@ -21,6 +28,12 @@ export default function DashboardPage() {
   const [verifying, setVerifying] = useState(false)
   const [verifyResult, setVerifyResult] = useState('')
   const [userId, setUserId] = useState<string | null>(null)
+  const [selectedColor, setSelectedColor] = useState('')
+  const [savingColor, setSavingColor] = useState(false)
+  const [showManualVerify, setShowManualVerify] = useState(false)
+  const [txHash, setTxHash] = useState('')
+  const [manualVerifyResult, setManualVerifyResult] = useState('')
+  const [submittingManual, setSubmittingManual] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -45,6 +58,7 @@ export default function DashboardPage() {
     setWallet(walletRes.data)
     setBuilding(buildingRes.data)
     setMessage(buildingRes.data?.message || '')
+    setSelectedColor(buildingRes.data?.color || '')
     setTotalCitizens(countRes.count || 0)
 
     if (buildingRes.data) {
@@ -65,7 +79,7 @@ export default function DashboardPage() {
       const res = await fetch(`/api/balance?address=${wallet.btc_address}`)
       const data = await res.json()
       if (res.ok) {
-        const { getBuildingHeight, getBuildingColor } = await import('@/lib/bitcoin')
+        const { getBuildingHeight } = await import('@/lib/bitcoin')
         await Promise.all([
           supabase.from('wallets').update({
             balance_satoshis: data.balance,
@@ -74,7 +88,6 @@ export default function DashboardPage() {
           supabase.from('buildings').update({
             balance_satoshis: data.balance,
             height: getBuildingHeight(data.balance),
-            color: getBuildingColor(data.balance),
           }).eq('user_id', wallet.user_id),
         ])
         await loadData()
@@ -93,6 +106,17 @@ export default function DashboardPage() {
       .update({ message: message.slice(0, 200) })
       .eq('user_id', building.user_id)
     setSavingMessage(false)
+  }
+
+  const handleSaveColor = async (color: string) => {
+    if (!building) return
+    setSelectedColor(color)
+    setSavingColor(true)
+    await supabase
+      .from('buildings')
+      .update({ color })
+      .eq('user_id', building.user_id)
+    setSavingColor(false)
   }
 
   const handleVerify = async () => {
@@ -118,6 +142,34 @@ export default function DashboardPage() {
     setVerifying(false)
   }
 
+  const handleManualVerify = async () => {
+    if (!wallet || !userId || !txHash.trim()) return
+    setSubmittingManual(true)
+    setManualVerifyResult('')
+    try {
+      const res = await fetch('/api/verification-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          btcAddress: wallet.btc_address,
+          txHash: txHash.trim(),
+        }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setManualVerifyResult('success')
+        setTxHash('')
+        setShowManualVerify(false)
+      } else {
+        setManualVerifyResult(data.error || 'Failed to submit request')
+      }
+    } catch {
+      setManualVerifyResult('Error submitting request')
+    }
+    setSubmittingManual(false)
+  }
+
   const walletChangesLeft = profile ? 3 - (profile.wallet_changes || 0) : 3
 
   if (loading) {
@@ -131,8 +183,50 @@ export default function DashboardPage() {
     )
   }
 
+  // Check if user has 1+ BTC, not verified, and deadline has passed
   const btc = wallet ? satoshisToBtc(wallet.balance_satoshis) : 0
   const label = wallet ? getBuildingLabel(wallet.balance_satoshis) : 'No wallet'
+
+  const deadlinePassed = building?.verification_deadline &&
+    !building?.verified &&
+    new Date(building.verification_deadline) < new Date()
+
+  if (deadlinePassed) {
+    return (
+      <>
+        <Navbar />
+        <div className="min-h-screen flex items-center justify-center pt-16 px-4">
+          <div className="card-dark max-w-lg text-center py-12">
+            <div className="text-5xl mb-4">&#9888;</div>
+            <h1 className="text-2xl font-bold text-red-400 mb-4">Verification Required</h1>
+            <p className="text-gray-300 mb-6">
+              Verify your account to remain active in the city. This is mandatory for all holders with more than 1 BTC.
+            </p>
+            <p className="text-gray-500 text-sm mb-6">
+              Your verification deadline has passed. Please complete the verification process to restore your building in Bitcoin City.
+            </p>
+            <div className="bg-gray-800 rounded-lg p-4 mb-6">
+              <p className="text-xs text-gray-500 mb-1">Send BTC to verify:</p>
+              <p className="text-xs font-mono text-[#f7931a] break-all select-all">{VERIFICATION_WALLET}</p>
+            </div>
+            <button
+              onClick={() => {
+                // Allow them to verify even from this screen
+                setShowVerify(true)
+                // Remove the blocking by resetting deadline check temporarily
+                if (building) {
+                  setBuilding({ ...building, verification_deadline: null })
+                }
+              }}
+              className="btn-bitcoin"
+            >
+              Start Verification
+            </button>
+          </div>
+        </div>
+      </>
+    )
+  }
 
   return (
     <>
@@ -167,7 +261,7 @@ export default function DashboardPage() {
                     width: '40px',
                     height: `${Math.max(20, (building?.height || 1) * 18)}px`,
                     maxHeight: '150px',
-                    backgroundColor: building?.color || '#4A90D9',
+                    backgroundColor: selectedColor || building?.color || '#4A90D9',
                     border: building?.verified ? '2px solid #FFD700' : 'none',
                     boxShadow: building?.verified ? '0 0 10px rgba(255,215,0,0.4)' : 'none',
                   }}
@@ -181,6 +275,15 @@ export default function DashboardPage() {
                 <p className="text-sm text-gray-400">
                   Rank <span className="text-[#f7931a] font-bold">#{rank}</span> of {totalCitizens} citizens
                 </p>
+              )}
+
+              {/* Verification deadline warning */}
+              {building?.verification_deadline && !building?.verified && (
+                <div className="mt-3 bg-yellow-900/30 border border-yellow-800 rounded-lg p-3">
+                  <p className="text-yellow-300 text-xs">
+                    Verification required by {new Date(building.verification_deadline).toLocaleDateString()}
+                  </p>
+                </div>
               )}
             </div>
 
@@ -205,6 +308,28 @@ export default function DashboardPage() {
                   Refresh Balance
                 </button>
               </div>
+            </div>
+
+            {/* Color Picker */}
+            <div className="card-dark">
+              <h2 className="text-lg font-semibold text-gray-300 mb-4">Building Color</h2>
+              <p className="text-xs text-gray-500 mb-3">Choose a color for your building in the city.</p>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {BUILDING_COLORS.map((color) => (
+                  <button
+                    key={color}
+                    onClick={() => handleSaveColor(color)}
+                    className="w-8 h-8 rounded-md border-2 transition-transform hover:scale-110"
+                    style={{
+                      backgroundColor: color,
+                      borderColor: selectedColor === color ? '#ffffff' : 'transparent',
+                      transform: selectedColor === color ? 'scale(1.15)' : 'scale(1)',
+                    }}
+                    title={color}
+                  />
+                ))}
+              </div>
+              {savingColor && <p className="text-xs text-gray-500">Saving...</p>}
             </div>
 
             {/* Building Message */}
@@ -262,6 +387,50 @@ export default function DashboardPage() {
                       {verifyResult === 'error' && <p className="text-red-400 text-sm">Error checking. Please try again.</p>}
                     </div>
                   )}
+
+                  {/* Manual Verification Request */}
+                  <div className="mt-3 border-t border-gray-800 pt-3">
+                    {!showManualVerify ? (
+                      <button
+                        onClick={() => setShowManualVerify(true)}
+                        className="text-xs text-gray-500 hover:text-gray-300 underline transition-colors"
+                      >
+                        Request Manual Verification
+                      </button>
+                    ) : (
+                      <div className="space-y-2">
+                        <p className="text-xs text-gray-400">Enter the transaction hash of your payment:</p>
+                        <input
+                          type="text"
+                          value={txHash}
+                          onChange={(e) => setTxHash(e.target.value)}
+                          className="input-dark text-xs font-mono"
+                          placeholder="Transaction hash (e.g. abc123...)"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={handleManualVerify}
+                            disabled={submittingManual || !txHash.trim()}
+                            className="btn-bitcoin text-xs !py-1.5 !px-3"
+                          >
+                            {submittingManual ? 'Submitting...' : 'Submit Request'}
+                          </button>
+                          <button
+                            onClick={() => { setShowManualVerify(false); setTxHash('') }}
+                            className="text-xs text-gray-500 hover:text-white"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                        {manualVerifyResult === 'success' && (
+                          <p className="text-green-400 text-xs">Request submitted! An admin will review it.</p>
+                        )}
+                        {manualVerifyResult && manualVerifyResult !== 'success' && (
+                          <p className="text-red-400 text-xs">{manualVerifyResult}</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </>
               )}
             </div>

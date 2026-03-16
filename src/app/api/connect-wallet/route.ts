@@ -1,6 +1,17 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { isValidBtcAddress, getBuildingHeight, getBuildingColor } from '@/lib/bitcoin'
+import { isValidBtcAddress, getBuildingHeight, satoshisToBtc } from '@/lib/bitcoin'
+
+const BUILDING_COLORS = [
+  '#E74C3C', '#E67E22', '#F1C40F', '#2ECC71', '#1ABC9C',
+  '#3498DB', '#9B59B6', '#E91E63', '#00BCD4', '#FF5722',
+  '#795548', '#607D8B', '#8BC34A', '#FF9800', '#673AB7',
+  '#009688', '#F44336', '#4CAF50', '#2196F3', '#FFC107',
+]
+
+function getRandomBuildingColor(): string {
+  return BUILDING_COLORS[Math.floor(Math.random() * BUILDING_COLORS.length)]
+}
 
 export const dynamic = 'force-dynamic'
 
@@ -102,6 +113,14 @@ export async function POST(request: Request) {
     const angle = idx * 0.8
     const radius = 3 + idx * 0.6
 
+    // Set verification deadline for 1+ BTC holders (7 days from now)
+    const btcAmount = satoshisToBtc(satoshis)
+    const verificationDeadline = btcAmount >= 1
+      ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+      : null
+
+    const randomColor = getRandomBuildingColor()
+
     // Insert building
     const { error: buildingError } = await supabase
       .from('buildings')
@@ -114,7 +133,8 @@ export async function POST(request: Request) {
         height: getBuildingHeight(satoshis),
         position_x: Math.cos(angle) * radius,
         position_z: Math.sin(angle) * radius,
-        color: getBuildingColor(satoshis),
+        color: randomColor,
+        verification_deadline: verificationDeadline,
       })
 
     if (buildingError) {
@@ -132,7 +152,7 @@ export async function POST(request: Request) {
       success: true,
       balance: satoshis,
       height: getBuildingHeight(satoshis),
-      color: getBuildingColor(satoshis),
+      color: randomColor,
     })
   } catch (err: any) {
     console.error('Connect wallet error:', err)

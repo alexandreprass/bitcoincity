@@ -134,6 +134,7 @@ function Building({ data, onClick }: { data: BuildingType; onClick: (b: Building
   const z = data.position_z || 0
   const verified = data.verified || false
   const style = getTierStyle(tier)
+  const bodyColor = data.color || style.body // Use user's chosen color for building body
   const [hovered, setHovered] = useState(false)
   const w = BUILDING_WIDTH
 
@@ -159,7 +160,7 @@ function Building({ data, onClick }: { data: BuildingType; onClick: (b: Building
       >
         <boxGeometry args={[w, height, w]} />
         <meshStandardMaterial
-          color={hovered ? '#aabbcc' : style.body}
+          color={hovered ? '#aabbcc' : bodyColor}
           metalness={tier >= 7 ? 0.6 : 0.15}
           roughness={tier >= 7 ? 0.3 : 0.7}
         />

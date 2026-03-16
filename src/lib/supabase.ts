@@ -34,5 +34,15 @@ export type Building = {
   color: string
   verified: boolean
   message: string
+  verification_deadline: string | null
+  created_at: string
+}
+
+export type VerificationRequest = {
+  id: string
+  user_id: string
+  btc_address: string
+  tx_hash: string
+  status: 'pending' | 'approved' | 'rejected'
   created_at: string
 }

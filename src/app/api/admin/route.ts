@@ -70,3 +70,33 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ success: true })
 }
+
+// DELETE - delete all data for a user
+export async function DELETE(request: Request) {
+  if (!checkAdmin(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !serviceKey) {
+    return NextResponse.json({ error: 'Server not configured' }, { status: 500 })
+  }
+
+  const supabase = createClient(url, serviceKey)
+
+  const { searchParams } = new URL(request.url)
+  const userId = searchParams.get('userId')
+
+  if (!userId) {
+    return NextResponse.json({ error: 'Missing userId' }, { status: 400 })
+  }
+
+  // Delete in order: verification_requests, buildings, wallets, profiles
+  await supabase.from('verification_requests').delete().eq('user_id', userId)
+  await supabase.from('buildings').delete().eq('user_id', userId)
+  await supabase.from('wallets').delete().eq('user_id', userId)
+  await supabase.from('profiles').delete().eq('id', userId)
+
+  return NextResponse.json({ success: true })
+}
