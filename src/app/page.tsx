@@ -43,41 +43,57 @@ export default function HomePage() {
     <div className="relative">
       <Navbar />
 
-      {/* Hero overlay - minimal when logged in */}
-      <div className={`absolute top-20 left-0 right-0 z-10 text-center pointer-events-none ${isLoggedIn ? 'opacity-80' : ''}`}>
-        <h1 className="text-5xl md:text-7xl font-black text-white drop-shadow-2xl">
-          BITCOIN<span className="text-[#f7931a]">CITY</span>
-        </h1>
-        {!isLoggedIn && (
-          <p className="text-lg md:text-xl text-gray-300 mt-3 drop-shadow-lg max-w-xl mx-auto px-4">
-            A city where every citizen is a building.
-            <br />
-            The more BTC you hold, the taller your tower.
-          </p>
-        )}
+      {/* Hero overlay - hidden when driving */}
+      {!drivingMode && (
+        <div className={`absolute top-20 left-0 right-0 z-10 text-center pointer-events-none ${isLoggedIn ? 'opacity-80' : ''}`}>
+          <h1 className="text-5xl md:text-7xl font-black text-white drop-shadow-2xl">
+            BITCOIN<span className="text-[#f7931a]">CITY</span>
+          </h1>
+          {!isLoggedIn && (
+            <p className="text-lg md:text-xl text-gray-300 mt-3 drop-shadow-lg max-w-xl mx-auto px-4">
+              A city where every citizen is a building.
+              <br />
+              The more BTC you hold, the taller your tower.
+            </p>
+          )}
 
-        <div className="flex justify-center gap-8 mt-4 text-sm">
-          <div className="bg-black/60 backdrop-blur-sm px-4 py-2 rounded-lg">
-            <p className="text-[#f7931a] font-bold text-2xl">{stats.citizens}</p>
+          <div className="flex justify-center gap-8 mt-4 text-sm">
+            <div className="bg-black/60 backdrop-blur-sm px-4 py-2 rounded-lg">
+              <p className="text-[#f7931a] font-bold text-2xl">{stats.citizens}</p>
+              <p className="text-gray-400">Citizens</p>
+            </div>
+            <div className="bg-black/60 backdrop-blur-sm px-4 py-2 rounded-lg">
+              <p className="text-[#f7931a] font-bold text-2xl">{stats.totalBtc.toFixed(4)}</p>
+              <p className="text-gray-400">Total BTC</p>
+            </div>
+          </div>
+
+          {!isLoggedIn && (
+            <div className="mt-6 pointer-events-auto">
+              <Link href="/auth/signup" className="btn-bitcoin text-lg px-8 py-4 inline-block">
+                Build Your Tower
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Compact stats when driving */}
+      {drivingMode && (
+        <div className="fixed top-20 left-4 z-20 bg-black/70 backdrop-blur-sm rounded-lg px-3 py-2 flex gap-4 text-xs">
+          <div>
+            <p className="text-[#f7931a] font-bold text-lg">{stats.citizens}</p>
             <p className="text-gray-400">Citizens</p>
           </div>
-          <div className="bg-black/60 backdrop-blur-sm px-4 py-2 rounded-lg">
-            <p className="text-[#f7931a] font-bold text-2xl">{stats.totalBtc.toFixed(4)}</p>
+          <div>
+            <p className="text-[#f7931a] font-bold text-lg">{stats.totalBtc.toFixed(4)}</p>
             <p className="text-gray-400">Total BTC</p>
           </div>
         </div>
+      )}
 
-        {!isLoggedIn && (
-          <div className="mt-6 pointer-events-auto">
-            <Link href="/auth/signup" className="btn-bitcoin text-lg px-8 py-4 inline-block">
-              Build Your Tower
-            </Link>
-          </div>
-        )}
-      </div>
-
-      {/* Bottom legend */}
-      <div className="absolute bottom-4 left-4 z-10 bg-black/70 backdrop-blur-sm rounded-lg p-4 text-xs space-y-1">
+      {/* Bottom legend - hidden when driving */}
+      <div className={`absolute bottom-4 left-4 z-10 bg-black/70 backdrop-blur-sm rounded-lg p-4 text-xs space-y-1 ${drivingMode ? 'hidden' : ''}`}>
         <p className="text-gray-400 font-semibold mb-2">Building Tiers</p>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: '#FFD700' }} />

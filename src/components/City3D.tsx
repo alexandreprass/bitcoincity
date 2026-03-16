@@ -404,99 +404,21 @@ function BuildingPopup({ building, onClose }: { building: BuildingType; onClose:
 function Ground() {
   return (
     <>
-      {/* Main ground - warm dark gray */}
+      {/* Main ground - warm lighter gray */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
         <circleGeometry args={[120, 64]} />
-        <meshStandardMaterial color="#1a1512" />
+        <meshStandardMaterial color="#2e2820" />
       </mesh>
       {/* Grass/park areas */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
         <ringGeometry args={[4, 5.5, 64]} />
-        <meshStandardMaterial color="#1a2a1a" />
+        <meshStandardMaterial color="#2a3a2a" />
       </mesh>
     </>
   )
 }
 
-// ==================== RAMPS (REALISTIC) ====================
-
-// Ramp data: position, direction angle, length, max height
-const RAMP_DATA = [
-  { x: 45, z: 0, angle: Math.PI, length: 8, height: 3 },
-  { x: -45, z: 0, angle: 0, length: 8, height: 3 },
-  { x: 0, z: 45, angle: -Math.PI / 2, length: 8, height: 3 },
-  { x: 0, z: -45, angle: Math.PI / 2, length: 8, height: 3 },
-  { x: 32, z: 32, angle: -Math.PI * 0.75 + Math.PI, length: 8, height: 3.5 },
-  { x: -32, z: -32, angle: Math.PI * 0.25 + Math.PI, length: 8, height: 3.5 },
-]
-
-// Returns the ramp height at a given car position, or 0 if not on any ramp
-function getRampHeight(carX: number, carZ: number): number {
-  for (const ramp of RAMP_DATA) {
-    // Vector from ramp center to car
-    const dx = carX - ramp.x
-    const dz = carZ - ramp.z
-    // Project onto ramp direction (forward axis)
-    const forward = Math.cos(ramp.angle) * dx + Math.sin(ramp.angle) * dz
-    // Project onto ramp side axis
-    const side = -Math.sin(ramp.angle) * dx + Math.cos(ramp.angle) * dz
-    // Check if car is within ramp bounds (width=3, length=ramp.length)
-    if (Math.abs(side) < 1.8 && forward > -1 && forward < ramp.length) {
-      // Ramp goes from 0 at start to max height at end, then drops off
-      const t = Math.max(0, forward) / ramp.length
-      if (t <= 1) {
-        return t * ramp.height + 0.15
-      }
-    }
-  }
-  return 0
-}
-
-function Ramps() {
-  return (
-    <>
-      {RAMP_DATA.map((ramp, i) => (
-        <group key={`ramp-${i}`} position={[ramp.x, 0, ramp.z]} rotation={[0, ramp.angle, 0]}>
-          {/* Ramp surface - tilted platform */}
-          <mesh position={[0, ramp.height / 2, ramp.length / 2]} rotation={[-Math.atan2(ramp.height, ramp.length), 0, 0]}>
-            <boxGeometry args={[3.2, 0.15, Math.sqrt(ramp.length * ramp.length + ramp.height * ramp.height)]} />
-            <meshStandardMaterial color="#555" metalness={0.4} roughness={0.5} />
-          </mesh>
-          {/* Side rail left */}
-          <mesh position={[-1.6, ramp.height / 2, ramp.length / 2]} rotation={[-Math.atan2(ramp.height, ramp.length), 0, 0]}>
-            <boxGeometry args={[0.12, 0.4, Math.sqrt(ramp.length * ramp.length + ramp.height * ramp.height)]} />
-            <meshStandardMaterial color="#f7931a" emissive="#ff6600" emissiveIntensity={0.3} />
-          </mesh>
-          {/* Side rail right */}
-          <mesh position={[1.6, ramp.height / 2, ramp.length / 2]} rotation={[-Math.atan2(ramp.height, ramp.length), 0, 0]}>
-            <boxGeometry args={[0.12, 0.4, Math.sqrt(ramp.length * ramp.length + ramp.height * ramp.height)]} />
-            <meshStandardMaterial color="#f7931a" emissive="#ff6600" emissiveIntensity={0.3} />
-          </mesh>
-          {/* Support pillars */}
-          <mesh position={[0, ramp.height * 0.3, ramp.length * 0.3]}>
-            <boxGeometry args={[2.8, ramp.height * 0.6, 0.3]} />
-            <meshStandardMaterial color="#333" />
-          </mesh>
-          <mesh position={[0, ramp.height * 0.5, ramp.length * 0.65]}>
-            <boxGeometry args={[2.8, ramp.height, 0.3]} />
-            <meshStandardMaterial color="#333" />
-          </mesh>
-          {/* Chevron arrows on ramp surface */}
-          <Text
-            position={[0, ramp.height * 0.25 + 0.1, ramp.length * 0.3]}
-            rotation={[-Math.atan2(ramp.height, ramp.length), 0, 0]}
-            fontSize={0.6}
-            color="#FFD700"
-            anchorX="center"
-            anchorY="middle"
-          >
-            {'>>>'}
-          </Text>
-        </group>
-      ))}
-    </>
-  )
-}
+// (Ramps removed)
 
 // ==================== GUARDRAILS ====================
 
@@ -624,7 +546,6 @@ function GhostCar({ data, myCarPos }: { data: GhostCarData; myCarPos: React.Muta
   const targetPos = useRef(new THREE.Vector3(data.x, data.y, data.z))
   const targetRot = useRef(data.rot)
   const bumpVelocity = useRef(new THREE.Vector3(0, 0, 0))
-  const bumpY = useRef(0)
   const bumpCooldown = useRef(0)
 
   useEffect(() => {
@@ -644,44 +565,38 @@ function GhostCar({ data, myCarPos }: { data: GhostCarData; myCarPos: React.Muta
     const dist = Math.sqrt(dx * dx + dz * dz)
 
     if (dist < 1.2 && dist > 0.01 && bumpCooldown.current <= 0) {
-      // BUMP! Ghost car flies away
-      const force = 0.8
+      // BUMP! Ghost car pushed forward horizontally (no upward launch)
+      const force = 0.5
       bumpVelocity.current.set(
         (dx / dist) * force,
-        0.3, // upward launch
+        0, // NO upward launch - horizontal only
         (dz / dist) * force
       )
-      bumpCooldown.current = 1.5 // 1.5s cooldown between bumps
-      // Spin the ghost car
-      targetRot.current += Math.PI * 2
+      bumpCooldown.current = 1.0 // 1s cooldown between bumps
+      // Small spin
+      targetRot.current += Math.PI * 0.5
     }
 
     bumpCooldown.current = Math.max(0, bumpCooldown.current - dt)
 
-    // Apply bump physics
+    // Apply bump physics (horizontal only)
     if (bumpVelocity.current.length() > 0.001) {
       ref.current.position.x += bumpVelocity.current.x
-      bumpY.current += bumpVelocity.current.y
       ref.current.position.z += bumpVelocity.current.z
-      // Gravity on Y
-      bumpVelocity.current.y -= 0.015
-      // Friction on XZ
-      bumpVelocity.current.x *= 0.95
-      bumpVelocity.current.z *= 0.95
-      // Ground clamp
-      if (bumpY.current < 0) {
-        bumpY.current = 0
+      // Friction on XZ - decays quickly
+      bumpVelocity.current.x *= 0.9
+      bumpVelocity.current.z *= 0.9
+      if (bumpVelocity.current.length() < 0.005) {
         bumpVelocity.current.set(0, 0, 0)
       }
-      ref.current.position.y = data.y + bumpY.current
+      ref.current.position.y = data.y
     } else {
-      bumpY.current = 0
-      // Smooth interpolation to target position
-      ref.current.position.lerp(targetPos.current, 0.15)
+      // Smooth interpolation to target position - faster lerp for less "slow motion"
+      ref.current.position.lerp(targetPos.current, 0.35)
     }
-    // Smooth rotation (with spin from bump)
+    // Smooth rotation
     const diff = targetRot.current - ref.current.rotation.y
-    ref.current.rotation.y += diff * 0.15
+    ref.current.rotation.y += diff * 0.3
   })
 
   return (
@@ -774,10 +689,6 @@ function Car({ active, driverName, ghostCarsRef, onNitroUpdate, onPositionUpdate
   const nitroRecharging = useRef(false)
   const [nitroFlameActive, setNitroFlameActive] = useState(false)
 
-  // Vertical physics for ramps
-  const yVelocity = useRef(0)
-  const isAirborne = useRef(false)
-
   useEffect(() => {
     if (!active) {
       keys.current.clear()
@@ -855,43 +766,20 @@ function Car({ active, driverName, ghostCarsRef, onNitroUpdate, onPositionUpdate
 
     let newX = posRef.current[0] + Math.sin(rotRef.current) * speed.current
     let newZ = posRef.current[2] + Math.cos(rotRef.current) * speed.current
-    let newY = posRef.current[1]
+    const newY = 0.15
 
-    // Ramp physics: car rides UP the ramp surface
-    const rampH = getRampHeight(newX, newZ)
-    if (rampH > 0 && !isAirborne.current) {
-      // Car is on a ramp - follow the ramp surface
-      newY = rampH
-      // When car reaches the TOP of the ramp (rampH near max), launch it!
-      if (rampH > 2.5 && Math.abs(speed.current) > 0.02) {
-        yVelocity.current = 0.08 + Math.abs(speed.current) * 0.5
-        isAirborne.current = true
-      }
-    } else if (isAirborne.current || newY > 0.16) {
-      // Airborne - apply gravity
-      yVelocity.current -= 0.008
-      newY += yVelocity.current
-      if (newY <= 0.15) {
-        newY = 0.15
-        yVelocity.current = 0
-        isAirborne.current = false
-      }
-    } else {
-      newY = 0.15
-    }
-
-    // Collision with ghost cars - bump them away
+    // Collision with ghost cars - symmetrical horizontal push
     if (ghostCarsRef?.current) {
       for (const ghost of ghostCarsRef.current) {
         const gx = ghost.x - newX
         const gz = ghost.z - newZ
         const dist = Math.sqrt(gx * gx + gz * gz)
-        if (dist < 1.0 && dist > 0.01) {
-          // Push our car back a bit
-          const pushForce = 0.03
+        if (dist < 1.2 && dist > 0.01) {
+          // Push MY car backward (away from ghost)
+          const pushForce = 0.15
           newX -= (gx / dist) * pushForce
           newZ -= (gz / dist) * pushForce
-          speed.current *= 0.7
+          speed.current *= 0.3 // strong brake on collision
         }
       }
     }
@@ -911,18 +799,18 @@ function Car({ active, driverName, ghostCarsRef, onNitroUpdate, onPositionUpdate
     carRef.current.rotation.y = rotRef.current
 
     const camDist = nitroActive.current ? 6 : 4
-    const camHeight = (nitroActive.current ? 3 : 2) + Math.max(0, newY - 0.15) * 0.5
+    const camHeight = nitroActive.current ? 3 : 2
     const targetCamPos = new THREE.Vector3(
       newX - Math.sin(rotRef.current) * camDist,
       camHeight,
       newZ - Math.cos(rotRef.current) * camDist
     )
     state.camera.position.lerp(targetCamPos, nitroActive.current ? 0.08 : 0.05)
-    state.camera.lookAt(newX, 0.5 + Math.max(0, newY - 0.15), newZ)
+    state.camera.lookAt(newX, 0.5, newZ)
 
-    // Broadcast position every ~100ms
+    // Broadcast position every ~50ms for smoother multiplayer
     broadcastTimer.current += dt
-    if (broadcastTimer.current > 0.1) {
+    if (broadcastTimer.current > 0.05) {
       broadcastTimer.current = 0
       onPositionUpdate?.(newX, newY, newZ, rotRef.current, nitroActive.current)
     }
@@ -1068,7 +956,7 @@ function WarmCityLights() {
   return (
     <>
       {lights.map(([x, z], i) => (
-        <pointLight key={`warm-${i}`} position={[x, 3, z]} intensity={0.4} distance={12} color="#ff9933" />
+        <pointLight key={`warm-${i}`} position={[x, 3, z]} intensity={0.7} distance={15} color="#ff9933" />
       ))}
     </>
   )
@@ -1248,29 +1136,28 @@ export default function City3D({ buildings, drivingMode = false, driverName = ''
       <Canvas
         shadows
         camera={{ position: [25, 18, 25], fov: 55 }}
-        style={{ background: 'linear-gradient(180deg, #1a0e05 0%, #2a1508 40%, #1a1005 100%)' }}
+        style={{ background: 'linear-gradient(180deg, #2d1a0a 0%, #3d2210 40%, #2a1808 100%)' }}
         onPointerMissed={() => setSelectedBuilding(null)}
       >
-        <ambientLight intensity={0.6} color="#ffddaa" />
+        <ambientLight intensity={1.0} color="#ffddaa" />
         <directionalLight
           position={[30, 40, 20]}
-          intensity={1.0}
+          intensity={1.4}
           castShadow
           shadow-mapSize-width={2048}
           shadow-mapSize-height={2048}
           color="#ffeedd"
         />
-        <pointLight position={[0, 30, 0]} intensity={0.6} color="#f7931a" />
-        <pointLight position={[15, 15, 15]} intensity={0.3} color="#ff8800" />
-        <pointLight position={[-15, 15, -15]} intensity={0.3} color="#ffaa33" />
-        <hemisphereLight args={['#2a1a0a', '#0a0805', 0.5]} />
+        <pointLight position={[0, 30, 0]} intensity={1.0} color="#f7931a" />
+        <pointLight position={[15, 15, 15]} intensity={0.5} color="#ff8800" />
+        <pointLight position={[-15, 15, -15]} intensity={0.5} color="#ffaa33" />
+        <hemisphereLight args={['#4a3018', '#1a1210', 0.8]} />
 
         <WarmCityLights />
         <CitySign count={buildings.length} />
         <Ground />
         <Roads />
         <Streetlights />
-        <Ramps />
         <Guardrails />
 
         {buildings.map((b) => (
@@ -1293,7 +1180,7 @@ export default function City3D({ buildings, drivingMode = false, driverName = ''
           />
         )}
 
-        <fog attach="fog" args={['#1a0e05', 50, 130]} />
+        <fog attach="fog" args={['#2d1a0a', 60, 150]} />
       </Canvas>
     </div>
   )
