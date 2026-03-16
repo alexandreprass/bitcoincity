@@ -15,6 +15,7 @@ export default function VerifyWalletPage() {
   const [balanceInfo, setBalanceInfo] = useState<{ satoshis: number; btc: number; label: string } | null>(null)
   const [dispute, setDispute] = useState(false)
   const [userId, setUserId] = useState<string | null>(null)
+  const [userMeta, setUserMeta] = useState<{ username: string; displayName: string }>({ username: 'Anon', displayName: 'Anon' })
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -22,6 +23,10 @@ export default function VerifyWalletPage() {
         router.push('/auth/login')
       } else {
         setUserId(data.user.id)
+        setUserMeta({
+          username: data.user.user_metadata?.username || 'Anon',
+          displayName: data.user.user_metadata?.display_name || data.user.user_metadata?.username || 'Anon',
+        })
       }
     })
   }, [router])
@@ -42,84 +47,33 @@ export default function VerifyWalletPage() {
     setLoading(true)
 
     try {
-      // Check if wallet is already claimed
-      const { data: existing } = await supabase
-        .from('wallets')
-        .select('user_id')
-        .eq('btc_address', trimmed)
-        .single()
+      // Call server-side API that uses service role (bypasses RLS)
+      const res = await fetch('/api/connect-wallet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          btcAddress: trimmed,
+          username: userMeta.username,
+          displayName: userMeta.displayName,
+        }),
+      })
 
-      if (existing && existing.user_id !== userId) {
+      const data = await res.json()
+
+      if (res.status === 409) {
         setDispute(true)
         setLoading(false)
         return
       }
 
-      // Fetch balance from blockchain
-      const res = await fetch(`/api/balance?address=${trimmed}`)
-      const data = await res.json()
-
       if (!res.ok) {
-        throw new Error(data.error || 'Failed to fetch balance')
+        throw new Error(data.error || 'Failed to connect wallet')
       }
 
-      const satoshis = data.balance
-      const btc = satoshisToBtc(satoshis)
-      const label = getBuildingLabel(satoshis)
-
-      setBalanceInfo({ satoshis, btc, label })
-
-      // Delete existing wallet and building first (clean slate for this user)
-      await supabase.from('buildings').delete().eq('user_id', userId)
-      await supabase.from('wallets').delete().eq('user_id', userId)
-
-      // Save wallet
-      const { error: walletError } = await supabase
-        .from('wallets')
-        .insert({
-          user_id: userId,
-          btc_address: trimmed,
-          balance_satoshis: satoshis,
-          last_updated: new Date().toISOString(),
-        })
-
-      if (walletError) throw new Error('Failed to save wallet: ' + walletError.message)
-
-      // Calculate building position (spiral)
-      const { count } = await supabase
-        .from('buildings')
-        .select('*', { count: 'exact', head: true })
-
-      const idx = count || 0
-      const angle = idx * 0.8
-      const radius = 3 + idx * 0.6
-
-      // Get profile
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('username, display_name')
-        .eq('id', userId)
-        .single()
-
-      // Create building
-      const { getBuildingHeight, getBuildingColor } = await import('@/lib/bitcoin')
-
-      const { error: buildingError } = await supabase
-        .from('buildings')
-        .insert({
-          user_id: userId,
-          username: profile?.username || 'Anon',
-          display_name: profile?.display_name || profile?.username || 'Anon',
-          btc_address: trimmed,
-          balance_satoshis: satoshis,
-          height: getBuildingHeight(satoshis),
-          position_x: Math.cos(angle) * radius,
-          position_z: Math.sin(angle) * radius,
-          color: getBuildingColor(satoshis),
-        })
-
-      if (buildingError) throw new Error('Failed to save building: ' + buildingError.message)
-
+      const btc = satoshisToBtc(data.balance)
+      const label = getBuildingLabel(data.balance)
+      setBalanceInfo({ satoshis: data.balance, btc, label })
       setSuccess(true)
     } catch (err: any) {
       setError(err.message || 'Something went wrong')
@@ -129,7 +83,6 @@ export default function VerifyWalletPage() {
   }
 
   const handleDispute = async () => {
-    // For now, just save it anyway with a flag
     setDispute(false)
     setError('Dispute noted. For now, please use a different wallet address, or contact support.')
   }

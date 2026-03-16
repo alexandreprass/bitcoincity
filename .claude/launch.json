@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "bitcoincity-dev",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["--prefix", "C:/Users/Alexandre Prass/bitcoincity", "next", "dev"],
+      "port": 3000
+    }
+  ]
+}
