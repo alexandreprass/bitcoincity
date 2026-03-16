@@ -16,6 +16,8 @@ function tierToHeight(tier: number): number {
 const BUILDING_WIDTH = 2.2 // fixed width for all buildings
 const FLOOR_HEIGHT = 0.55 // each visual floor height
 const WINDOW_COLS = 5 // exactly 5 windows per side
+const CITY_BOUNDARY_RADIUS = 57 // invisible wall radius
+const GUARDRAIL_RADIUS = 55 // visible guardrail radius
 
 // Modern glass/steel color palette per tier
 function getTierStyle(tier: number) {
@@ -32,27 +34,131 @@ function getTierStyle(tier: number) {
   return styles[tier] || styles[1]
 }
 
+// ==================== VERIFIED AURA (Golden Treasure) ====================
+
+function GoldenSparkles({ height }: { height: number }) {
+  const particlesRef = useRef<THREE.Points>(null)
+  const count = 40
+
+  const [positions, velocities] = useMemo(() => {
+    const pos = new Float32Array(count * 3)
+    const vel = new Float32Array(count * 3)
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2
+      const r = BUILDING_WIDTH * 0.5 + Math.random() * 0.6
+      pos[i * 3] = Math.cos(angle) * r
+      pos[i * 3 + 1] = Math.random() * height
+      pos[i * 3 + 2] = Math.sin(angle) * r
+      vel[i * 3] = (Math.random() - 0.5) * 0.01
+      vel[i * 3 + 1] = 0.005 + Math.random() * 0.015
+      vel[i * 3 + 2] = (Math.random() - 0.5) * 0.01
+    }
+    return [pos, vel]
+  }, [height])
+
+  useFrame(() => {
+    if (!particlesRef.current) return
+    const geo = particlesRef.current.geometry
+    const posAttr = geo.attributes.position as THREE.BufferAttribute
+    const arr = posAttr.array as Float32Array
+    for (let i = 0; i < count; i++) {
+      arr[i * 3] += velocities[i * 3]
+      arr[i * 3 + 1] += velocities[i * 3 + 1]
+      arr[i * 3 + 2] += velocities[i * 3 + 2]
+      // Reset particle when it goes above building
+      if (arr[i * 3 + 1] > height + 2) {
+        const angle = Math.random() * Math.PI * 2
+        const r = BUILDING_WIDTH * 0.5 + Math.random() * 0.6
+        arr[i * 3] = Math.cos(angle) * r
+        arr[i * 3 + 1] = 0
+        arr[i * 3 + 2] = Math.sin(angle) * r
+      }
+    }
+    posAttr.needsUpdate = true
+  })
+
+  return (
+    <points ref={particlesRef}>
+      <bufferGeometry>
+        <bufferAttribute
+          attach="attributes-position"
+          count={count}
+          array={positions}
+          itemSize={3}
+        />
+      </bufferGeometry>
+      <pointsMaterial
+        color="#FFD700"
+        size={0.12}
+        transparent
+        opacity={0.9}
+        blending={THREE.AdditiveBlending}
+        depthWrite={false}
+      />
+    </points>
+  )
+}
+
 function VerifiedAura({ height }: { height: number }) {
   const ref = useRef<THREE.Mesh>(null)
+  const innerRef = useRef<THREE.Mesh>(null)
   useFrame((state) => {
     if (ref.current) {
-      ref.current.rotation.y += 0.008
-      const pulse = 1 + Math.sin(state.clock.elapsedTime * 1.5) * 0.03
+      ref.current.rotation.y += 0.012
+      const pulse = 1 + Math.sin(state.clock.elapsedTime * 2) * 0.06
       ref.current.scale.set(pulse, 1, pulse)
+    }
+    if (innerRef.current) {
+      innerRef.current.rotation.y -= 0.008
+      const pulse2 = 1 + Math.cos(state.clock.elapsedTime * 3) * 0.04
+      innerRef.current.scale.set(pulse2, 1, pulse2)
     }
   })
   return (
-    <mesh ref={ref} position={[0, height / 2, 0]}>
-      <cylinderGeometry args={[BUILDING_WIDTH * 0.85, BUILDING_WIDTH * 0.85, height + 1, 8, 1, true]} />
-      <meshStandardMaterial
-        color="#FFD700"
-        transparent
-        opacity={0.08}
-        side={THREE.DoubleSide}
-        emissive="#FFD700"
-        emissiveIntensity={0.4}
-      />
-    </mesh>
+    <>
+      {/* Outer golden aura */}
+      <mesh ref={ref} position={[0, height / 2, 0]}>
+        <cylinderGeometry args={[BUILDING_WIDTH * 0.95, BUILDING_WIDTH * 0.95, height + 2, 8, 1, true]} />
+        <meshStandardMaterial
+          color="#FFD700"
+          transparent
+          opacity={0.12}
+          side={THREE.DoubleSide}
+          emissive="#FFD700"
+          emissiveIntensity={0.8}
+        />
+      </mesh>
+      {/* Inner brighter glow */}
+      <mesh ref={innerRef} position={[0, height / 2, 0]}>
+        <cylinderGeometry args={[BUILDING_WIDTH * 0.75, BUILDING_WIDTH * 0.75, height + 1, 6, 1, true]} />
+        <meshStandardMaterial
+          color="#FFA500"
+          transparent
+          opacity={0.08}
+          side={THREE.DoubleSide}
+          emissive="#FFA500"
+          emissiveIntensity={1.0}
+        />
+      </mesh>
+      {/* Golden point light at top */}
+      <pointLight position={[0, height + 1, 0]} intensity={1.5} distance={8} color="#FFD700" />
+      {/* Golden point light at base */}
+      <pointLight position={[0, 0.5, 0]} intensity={0.8} distance={5} color="#FFA500" />
+      {/* Rising golden sparkle particles */}
+      <GoldenSparkles height={height} />
+      {/* Ground glow ring */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
+        <ringGeometry args={[BUILDING_WIDTH * 0.5, BUILDING_WIDTH * 1.2, 32]} />
+        <meshStandardMaterial
+          color="#FFD700"
+          transparent
+          opacity={0.25}
+          emissive="#FFD700"
+          emissiveIntensity={1.2}
+          side={THREE.DoubleSide}
+        />
+      </mesh>
+    </>
   )
 }
 
@@ -298,10 +404,10 @@ function BuildingPopup({ building, onClose }: { building: BuildingType; onClose:
 function Ground() {
   return (
     <>
-      {/* Main ground */}
+      {/* Main ground - warm dark gray */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
         <circleGeometry args={[120, 64]} />
-        <meshStandardMaterial color="#111118" />
+        <meshStandardMaterial color="#1a1512" />
       </mesh>
       {/* Grass/park areas */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
@@ -312,12 +418,208 @@ function Ground() {
   )
 }
 
-function Car({ active }: { active: boolean }) {
+// ==================== RAMPS ====================
+
+function Ramps() {
+  const ramps = useMemo(() => {
+    // 6 ramps placed at edges of the city pointing inward
+    return [
+      { pos: [45, 0, 0] as [number, number, number], rot: [0, -Math.PI / 2, 0] as [number, number, number] },
+      { pos: [-45, 0, 0] as [number, number, number], rot: [0, Math.PI / 2, 0] as [number, number, number] },
+      { pos: [0, 0, 45] as [number, number, number], rot: [0, Math.PI, 0] as [number, number, number] },
+      { pos: [0, 0, -45] as [number, number, number], rot: [0, 0, 0] as [number, number, number] },
+      { pos: [32, 0, 32] as [number, number, number], rot: [0, -Math.PI * 0.75, 0] as [number, number, number] },
+      { pos: [-32, 0, -32] as [number, number, number], rot: [0, Math.PI * 0.25, 0] as [number, number, number] },
+    ]
+  }, [])
+
+  return (
+    <>
+      {ramps.map((ramp, i) => (
+        <group key={`ramp-${i}`} position={ramp.pos} rotation={ramp.rot}>
+          {/* Ramp surface - wedge shape using a custom approach */}
+          <mesh position={[0, 0.75, 0]} rotation={[-0.35, 0, 0]}>
+            <boxGeometry args={[3, 0.15, 4]} />
+            <meshStandardMaterial color="#f7931a" metalness={0.3} roughness={0.6} />
+          </mesh>
+          {/* Support under ramp */}
+          <mesh position={[0, 0.2, -0.5]}>
+            <boxGeometry args={[3, 0.4, 3]} />
+            <meshStandardMaterial color="#8B4513" metalness={0.2} roughness={0.8} />
+          </mesh>
+          {/* Side rails */}
+          <mesh position={[-1.5, 0.8, 0]}>
+            <boxGeometry args={[0.1, 0.3, 4]} />
+            <meshStandardMaterial color="#ff8c00" emissive="#ff6600" emissiveIntensity={0.3} />
+          </mesh>
+          <mesh position={[1.5, 0.8, 0]}>
+            <boxGeometry args={[0.1, 0.3, 4]} />
+            <meshStandardMaterial color="#ff8c00" emissive="#ff6600" emissiveIntensity={0.3} />
+          </mesh>
+          {/* Arrow marker on ramp */}
+          <Text
+            position={[0, 1.1, 0.5]}
+            rotation={[-0.35, 0, 0]}
+            fontSize={0.8}
+            color="#FFD700"
+            anchorX="center"
+            anchorY="middle"
+          >
+            ^
+          </Text>
+        </group>
+      ))}
+    </>
+  )
+}
+
+// Ramp collision data for the car
+const RAMP_DATA = [
+  { x: 45, z: 0, angle: -Math.PI / 2 },
+  { x: -45, z: 0, angle: Math.PI / 2 },
+  { x: 0, z: 45, angle: Math.PI },
+  { x: 0, z: -45, angle: 0 },
+  { x: 32, z: 32, angle: -Math.PI * 0.75 },
+  { x: -32, z: -32, angle: Math.PI * 0.25 },
+]
+
+function isOnRamp(carX: number, carZ: number): boolean {
+  for (const ramp of RAMP_DATA) {
+    const dx = carX - ramp.x
+    const dz = carZ - ramp.z
+    const dist = Math.sqrt(dx * dx + dz * dz)
+    if (dist < 3) return true
+  }
+  return false
+}
+
+// ==================== GUARDRAILS ====================
+
+function Guardrails() {
+  const segments = 48
+  const posts = useMemo(() => {
+    const arr: { x: number; z: number; angle: number }[] = []
+    for (let i = 0; i < segments; i++) {
+      const angle = (i / segments) * Math.PI * 2
+      arr.push({
+        x: Math.cos(angle) * GUARDRAIL_RADIUS,
+        z: Math.sin(angle) * GUARDRAIL_RADIUS,
+        angle,
+      })
+    }
+    return arr
+  }, [])
+
+  return (
+    <group>
+      {/* Guardrail ring (continuous wall) */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.3, 0]}>
+        <ringGeometry args={[GUARDRAIL_RADIUS - 0.15, GUARDRAIL_RADIUS + 0.15, 64]} />
+        <meshStandardMaterial color="#444" metalness={0.5} roughness={0.5} />
+      </mesh>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.6, 0]}>
+        <ringGeometry args={[GUARDRAIL_RADIUS - 0.1, GUARDRAIL_RADIUS + 0.1, 64]} />
+        <meshStandardMaterial color="#666" metalness={0.6} roughness={0.4} />
+      </mesh>
+      {/* Vertical posts */}
+      {posts.map((post, i) => (
+        <mesh key={`post-${i}`} position={[post.x, 0.4, post.z]}>
+          <boxGeometry args={[0.12, 0.8, 0.12]} />
+          <meshStandardMaterial color="#555" metalness={0.5} />
+        </mesh>
+      ))}
+      {/* Reflective strips (orange BTC themed) */}
+      {posts.filter((_, i) => i % 3 === 0).map((post, i) => (
+        <mesh key={`refl-${i}`} position={[post.x, 0.6, post.z]}>
+          <boxGeometry args={[0.15, 0.08, 0.15]} />
+          <meshStandardMaterial color="#f7931a" emissive="#f7931a" emissiveIntensity={0.5} />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+// ==================== CAR WITH NITRO ====================
+
+function NitroFlame({ active }: { active: boolean }) {
+  const ref = useRef<THREE.Group>(null)
+  useFrame((state) => {
+    if (!ref.current) return
+    ref.current.visible = active
+    if (active) {
+      const flicker = 0.8 + Math.random() * 0.4
+      ref.current.scale.set(flicker, flicker + Math.random() * 0.5, flicker)
+    }
+  })
+
+  return (
+    <group ref={ref} visible={false}>
+      {/* Blue core flame */}
+      <mesh position={[-0.08, 0.12, -0.6]}>
+        <coneGeometry args={[0.06, 0.4, 6]} />
+        <meshStandardMaterial
+          color="#0066ff"
+          emissive="#0088ff"
+          emissiveIntensity={3}
+          transparent
+          opacity={0.9}
+        />
+      </mesh>
+      <mesh position={[0.08, 0.12, -0.6]}>
+        <coneGeometry args={[0.06, 0.4, 6]} />
+        <meshStandardMaterial
+          color="#0066ff"
+          emissive="#0088ff"
+          emissiveIntensity={3}
+          transparent
+          opacity={0.9}
+        />
+      </mesh>
+      {/* Orange outer flame */}
+      <mesh position={[-0.08, 0.12, -0.75]}>
+        <coneGeometry args={[0.09, 0.5, 6]} />
+        <meshStandardMaterial
+          color="#ff6600"
+          emissive="#ff4400"
+          emissiveIntensity={2}
+          transparent
+          opacity={0.6}
+        />
+      </mesh>
+      <mesh position={[0.08, 0.12, -0.75]}>
+        <coneGeometry args={[0.09, 0.5, 6]} />
+        <meshStandardMaterial
+          color="#ff6600"
+          emissive="#ff4400"
+          emissiveIntensity={2}
+          transparent
+          opacity={0.6}
+        />
+      </mesh>
+      {/* Glow light */}
+      <pointLight position={[0, 0.12, -0.8]} intensity={2} distance={3} color="#4488ff" />
+    </group>
+  )
+}
+
+function Car({ active, driverName, onNitroUpdate }: { active: boolean; driverName?: string; onNitroUpdate?: (charges: number, recharging: boolean) => void }) {
   const carRef = useRef<THREE.Group>(null)
   const posRef = useRef<[number, number, number]>([0, 0.15, 8])
   const rotRef = useRef(0)
   const speed = useRef(0)
   const keys = useRef<Set<string>>(new Set())
+
+  // Nitro state
+  const nitroCharges = useRef(2)
+  const nitroActive = useRef(false)
+  const nitroTimer = useRef(0)
+  const nitroRechargeTimer = useRef(0)
+  const nitroRecharging = useRef(false)
+  const [nitroFlameActive, setNitroFlameActive] = useState(false)
+
+  // Vertical physics for ramps
+  const yVelocity = useRef(0)
+  const isAirborne = useRef(false)
 
   useEffect(() => {
     if (!active) {
@@ -325,7 +627,24 @@ function Car({ active }: { active: boolean }) {
       speed.current = 0
       return
     }
-    const handleKeyDown = (e: KeyboardEvent) => keys.current.add(e.key.toLowerCase())
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase()
+      keys.current.add(key)
+      // Nitro activation on space
+      if (key === ' ' && nitroCharges.current > 0 && !nitroActive.current) {
+        e.preventDefault()
+        nitroCharges.current -= 1
+        nitroActive.current = true
+        nitroTimer.current = 1.0 // 1 second of nitro
+        setNitroFlameActive(true)
+        // Start recharge if not already recharging
+        if (!nitroRecharging.current) {
+          nitroRecharging.current = true
+          nitroRechargeTimer.current = 10.0 // 10 seconds to full recharge
+        }
+        onNitroUpdate?.(nitroCharges.current, true)
+      }
+    }
     const handleKeyUp = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase())
     window.addEventListener('keydown', handleKeyDown)
     window.addEventListener('keyup', handleKeyUp)
@@ -334,13 +653,39 @@ function Car({ active }: { active: boolean }) {
       window.removeEventListener('keyup', handleKeyUp)
       keys.current.clear()
     }
-  }, [active])
+  }, [active, onNitroUpdate])
 
-  useFrame((state) => {
+  useFrame((state, delta) => {
     if (!active || !carRef.current) return
     const k = keys.current
+    const dt = Math.min(delta, 0.05) // cap delta
 
-    if (k.has('w') || k.has('arrowup')) speed.current = Math.min(speed.current + 0.002, 0.15)
+    // Nitro timer
+    if (nitroActive.current) {
+      nitroTimer.current -= dt
+      if (nitroTimer.current <= 0) {
+        nitroActive.current = false
+        nitroTimer.current = 0
+        setNitroFlameActive(false)
+      }
+    }
+
+    // Nitro recharge
+    if (nitroRecharging.current) {
+      nitroRechargeTimer.current -= dt
+      if (nitroRechargeTimer.current <= 0) {
+        nitroCharges.current = 2
+        nitroRecharging.current = false
+        nitroRechargeTimer.current = 0
+        onNitroUpdate?.(2, false)
+      }
+    }
+
+    // Speed multiplier from nitro
+    const nitroMultiplier = nitroActive.current ? 3.0 : 1.0
+    const maxSpeed = 0.15 * nitroMultiplier
+
+    if (k.has('w') || k.has('arrowup')) speed.current = Math.min(speed.current + 0.002 * nitroMultiplier, maxSpeed)
     else if (k.has('s') || k.has('arrowdown')) speed.current = Math.max(speed.current - 0.002, -0.08)
     else speed.current *= 0.95
 
@@ -349,22 +694,51 @@ function Car({ active }: { active: boolean }) {
       if (k.has('d') || k.has('arrowright')) rotRef.current -= 0.03
     }
 
-    const newX = posRef.current[0] + Math.sin(rotRef.current) * speed.current
-    const newZ = posRef.current[2] + Math.cos(rotRef.current) * speed.current
-    posRef.current = [newX, 0.15, newZ]
+    let newX = posRef.current[0] + Math.sin(rotRef.current) * speed.current
+    let newZ = posRef.current[2] + Math.cos(rotRef.current) * speed.current
+    let newY = posRef.current[1]
 
-    carRef.current.position.set(newX, 0.15, newZ)
+    // Ramp launch check
+    if (isOnRamp(newX, newZ) && !isAirborne.current && Math.abs(speed.current) > 0.03) {
+      yVelocity.current = 0.15 + Math.abs(speed.current) * 0.8 // Launch force proportional to speed
+      isAirborne.current = true
+    }
+
+    // Vertical physics (gravity)
+    if (isAirborne.current || newY > 0.15) {
+      yVelocity.current -= 0.008 // gravity
+      newY += yVelocity.current
+      if (newY <= 0.15) {
+        newY = 0.15
+        yVelocity.current = 0
+        isAirborne.current = false
+      }
+    }
+
+    // City boundary clamp
+    const distFromCenter = Math.sqrt(newX * newX + newZ * newZ)
+    if (distFromCenter > CITY_BOUNDARY_RADIUS) {
+      const clampFactor = CITY_BOUNDARY_RADIUS / distFromCenter
+      newX *= clampFactor
+      newZ *= clampFactor
+      // Kill some speed on hitting boundary
+      speed.current *= 0.5
+    }
+
+    posRef.current = [newX, newY, newZ]
+
+    carRef.current.position.set(newX, newY, newZ)
     carRef.current.rotation.y = rotRef.current
 
     const camDist = 4
-    const camHeight = 2
+    const camHeight = 2 + Math.max(0, newY - 0.15) * 0.5
     const targetCamPos = new THREE.Vector3(
       newX - Math.sin(rotRef.current) * camDist,
       camHeight,
       newZ - Math.cos(rotRef.current) * camDist
     )
     state.camera.position.lerp(targetCamPos, 0.05)
-    state.camera.lookAt(newX, 0.5, newZ)
+    state.camera.lookAt(newX, 0.5 + Math.max(0, newY - 0.15), newZ)
   })
 
   if (!active) return null
@@ -406,6 +780,22 @@ function Car({ active }: { active: boolean }) {
         <sphereGeometry args={[0.025]} />
         <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={1.5} />
       </mesh>
+      {/* Nitro flames */}
+      <NitroFlame active={nitroFlameActive} />
+      {/* Driver name above car */}
+      {driverName && (
+        <Text
+          position={[0, 0.55, 0]}
+          fontSize={0.15}
+          color="#f7931a"
+          anchorX="center"
+          anchorY="bottom"
+          outlineWidth={0.02}
+          outlineColor="#000000"
+        >
+          {driverName}
+        </Text>
+      )}
     </group>
   )
 }
@@ -471,6 +861,32 @@ function Streetlights() {
   )
 }
 
+// ==================== WARM CITY LIGHTS ====================
+
+function WarmCityLights() {
+  const lights = useMemo(() => {
+    const arr: [number, number][] = []
+    // Additional warm lights around the city at various radii
+    for (let i = 0; i < 8; i++) {
+      const angle = (i / 8) * Math.PI * 2
+      arr.push([Math.cos(angle) * 25, Math.sin(angle) * 25])
+    }
+    for (let i = 0; i < 6; i++) {
+      const angle = (i / 6) * Math.PI * 2 + 0.3
+      arr.push([Math.cos(angle) * 40, Math.sin(angle) * 40])
+    }
+    return arr
+  }, [])
+
+  return (
+    <>
+      {lights.map(([x, z], i) => (
+        <pointLight key={`warm-${i}`} position={[x, 3, z]} intensity={0.4} distance={12} color="#ff9933" />
+      ))}
+    </>
+  )
+}
+
 function CitySign({ count }: { count: number }) {
   return (
     <group position={[0, 4, -6]}>
@@ -498,11 +914,47 @@ function CitySign({ count }: { count: number }) {
   )
 }
 
-export default function City3D({ buildings, drivingMode = false }: { buildings: BuildingType[]; drivingMode?: boolean }) {
+// ==================== NITRO UI ====================
+
+function NitroUI({ charges, recharging }: { charges: number; recharging: boolean }) {
+  return (
+    <div className="fixed bottom-16 right-6 z-20 bg-black/80 backdrop-blur-sm rounded-lg px-4 py-3 text-center">
+      <p className="text-xs text-gray-400 mb-1 font-semibold">NITRO [SPACE]</p>
+      <div className="flex gap-2 justify-center">
+        {[0, 1].map((i) => (
+          <div
+            key={i}
+            className={`w-6 h-6 rounded-md border-2 flex items-center justify-center text-xs font-bold transition-all ${
+              i < charges
+                ? 'border-blue-400 bg-blue-500/30 text-blue-300 shadow-[0_0_8px_rgba(59,130,246,0.5)]'
+                : 'border-gray-600 bg-gray-800/50 text-gray-600'
+            }`}
+          >
+            {i < charges ? '\u26A1' : ''}
+          </div>
+        ))}
+      </div>
+      {recharging && charges < 2 && (
+        <p className="text-[10px] text-orange-400 mt-1 animate-pulse">Recharging...</p>
+      )}
+    </div>
+  )
+}
+
+// ==================== MAIN COMPONENT ====================
+
+export default function City3D({ buildings, drivingMode = false, driverName = '' }: { buildings: BuildingType[]; drivingMode?: boolean; driverName?: string }) {
   const [selectedBuilding, setSelectedBuilding] = useState<BuildingType | null>(null)
+  const [nitroCharges, setNitroCharges] = useState(2)
+  const [nitroRecharging, setNitroRecharging] = useState(false)
 
   const handleBuildingClick = useCallback((b: BuildingType) => {
     setSelectedBuilding(b)
+  }, [])
+
+  const handleNitroUpdate = useCallback((charges: number, recharging: boolean) => {
+    setNitroCharges(charges)
+    setNitroRecharging(recharging)
   }, [])
 
   return (
@@ -511,33 +963,44 @@ export default function City3D({ buildings, drivingMode = false }: { buildings: 
         <BuildingPopup building={selectedBuilding} onClose={() => setSelectedBuilding(null)} />
       )}
 
+      {/* Nitro UI overlay when driving */}
+      {drivingMode && (
+        <NitroUI charges={nitroCharges} recharging={nitroRecharging} />
+      )}
+
       <Canvas
         shadows
         camera={{ position: [25, 18, 25], fov: 55 }}
-        style={{ background: 'linear-gradient(180deg, #0a0a1a 0%, #0d0d24 100%)' }}
+        style={{ background: 'linear-gradient(180deg, #1a0e05 0%, #2a1508 40%, #1a1005 100%)' }}
         onPointerMissed={() => setSelectedBuilding(null)}
       >
-        <ambientLight intensity={0.35} />
+        <ambientLight intensity={0.6} color="#ffddaa" />
         <directionalLight
           position={[30, 40, 20]}
-          intensity={0.9}
+          intensity={1.0}
           castShadow
           shadow-mapSize-width={2048}
           shadow-mapSize-height={2048}
+          color="#ffeedd"
         />
-        <pointLight position={[0, 30, 0]} intensity={0.3} color="#f7931a" />
-        <hemisphereLight args={['#1a1a3a', '#0a0a0a', 0.4]} />
+        <pointLight position={[0, 30, 0]} intensity={0.6} color="#f7931a" />
+        <pointLight position={[15, 15, 15]} intensity={0.3} color="#ff8800" />
+        <pointLight position={[-15, 15, -15]} intensity={0.3} color="#ffaa33" />
+        <hemisphereLight args={['#2a1a0a', '#0a0805', 0.5]} />
 
+        <WarmCityLights />
         <CitySign count={buildings.length} />
         <Ground />
         <Roads />
         <Streetlights />
+        <Ramps />
+        <Guardrails />
 
         {buildings.map((b) => (
           <Building key={b.id} data={b} onClick={handleBuildingClick} />
         ))}
 
-        <Car active={drivingMode} />
+        <Car active={drivingMode} driverName={driverName} onNitroUpdate={handleNitroUpdate} />
 
         {!drivingMode && (
           <OrbitControls
@@ -552,7 +1015,7 @@ export default function City3D({ buildings, drivingMode = false }: { buildings: 
           />
         )}
 
-        <fog attach="fog" args={['#0a0a1a', 40, 120]} />
+        <fog attach="fog" args={['#1a0e05', 50, 130]} />
       </Canvas>
     </div>
   )
