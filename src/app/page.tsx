@@ -144,7 +144,8 @@ export default function HomePage() {
       {/* Drive Around button - only for logged in users */}
       {isLoggedIn && (
         <button
-          onClick={() => setDrivingMode((prev) => !prev)}
+          onClick={(e) => { (e.target as HTMLButtonElement).blur(); setDrivingMode((prev) => !prev) }}
+          onKeyDown={(e) => { if (e.key === ' ') e.preventDefault() }}
           className={`fixed bottom-6 right-6 z-20 px-5 py-3 rounded-xl font-bold text-sm shadow-lg transition-all duration-200 ${
             drivingMode
               ? 'bg-red-600 hover:bg-red-700 text-white'
@@ -155,11 +156,27 @@ export default function HomePage() {
         </button>
       )}
 
-      {/* Driving controls hint */}
+      {/* Driving controls hint - desktop only */}
       {drivingMode && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 bg-black/80 backdrop-blur-sm text-gray-300 text-xs px-4 py-2 rounded-lg">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 bg-black/80 backdrop-blur-sm text-gray-300 text-xs px-4 py-2 rounded-lg hidden md:block">
           W/Arrow Up = Forward &nbsp; S/Arrow Down = Reverse &nbsp; A/D or Arrows = Steer &nbsp; SPACE = Nitro Boost
         </div>
+      )}
+      {/* Mobile controls hint */}
+      {drivingMode && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 bg-black/80 backdrop-blur-sm text-gray-300 text-xs px-4 py-2 rounded-lg md:hidden">
+          Touch = Accelerate &nbsp; Drag Left/Right = Steer
+        </div>
+      )}
+      {/* Mobile nitro button */}
+      {drivingMode && (
+        <button
+          id="mobile-nitro-btn"
+          onTouchStart={(e) => { e.preventDefault(); window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' })) }}
+          className="fixed bottom-20 right-6 z-20 w-14 h-14 rounded-full bg-blue-600/80 backdrop-blur-sm text-white font-bold text-lg shadow-lg active:bg-blue-400 md:hidden flex items-center justify-center"
+        >
+          ⚡
+        </button>
       )}
     </div>
   )

@@ -689,39 +689,76 @@ function Car({ active, driverName, ghostCarsRef, onNitroUpdate, onPositionUpdate
   const nitroRecharging = useRef(false)
   const [nitroFlameActive, setNitroFlameActive] = useState(false)
 
+  // Mobile touch state
+  const touchActive = useRef(false)
+  const touchStartX = useRef(0)
+  const touchSteerAmount = useRef(0) // -1 to 1
+
+  const activateNitro = useCallback(() => {
+    if (nitroCharges.current > 0 && !nitroActive.current) {
+      nitroCharges.current -= 1
+      nitroActive.current = true
+      nitroTimer.current = 1.0
+      setNitroFlameActive(true)
+      if (!nitroRecharging.current) {
+        nitroRecharging.current = true
+        nitroRechargeTimer.current = 10.0
+      }
+      onNitroUpdate?.(nitroCharges.current, true)
+    }
+  }, [onNitroUpdate])
+
   useEffect(() => {
     if (!active) {
       keys.current.clear()
       speed.current = 0
+      touchActive.current = false
+      touchSteerAmount.current = 0
       return
     }
     const handleKeyDown = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase()
       keys.current.add(key)
-      // Nitro activation on space
-      if (key === ' ' && nitroCharges.current > 0 && !nitroActive.current) {
-        e.preventDefault()
-        nitroCharges.current -= 1
-        nitroActive.current = true
-        nitroTimer.current = 1.0 // 1 second of nitro
-        setNitroFlameActive(true)
-        // Start recharge if not already recharging
-        if (!nitroRecharging.current) {
-          nitroRecharging.current = true
-          nitroRechargeTimer.current = 10.0 // 10 seconds to full recharge
-        }
-        onNitroUpdate?.(nitroCharges.current, true)
-      }
+      if (key === ' ') { e.preventDefault(); activateNitro() }
     }
     const handleKeyUp = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase())
+
+    // Mobile touch handlers
+    const handleTouchStart = (e: TouchEvent) => {
+      if (!active) return
+      const touch = e.touches[0]
+      touchActive.current = true
+      touchStartX.current = touch.clientX
+      touchSteerAmount.current = 0
+    }
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!touchActive.current) return
+      e.preventDefault()
+      const touch = e.touches[0]
+      const screenW = window.innerWidth
+      const dx = touch.clientX - touchStartX.current
+      // Normalize: full screen width = full steer
+      touchSteerAmount.current = Math.max(-1, Math.min(1, dx / (screenW * 0.2)))
+    }
+    const handleTouchEnd = () => {
+      touchActive.current = false
+      touchSteerAmount.current = 0
+    }
+
     window.addEventListener('keydown', handleKeyDown)
     window.addEventListener('keyup', handleKeyUp)
+    window.addEventListener('touchstart', handleTouchStart, { passive: true })
+    window.addEventListener('touchmove', handleTouchMove, { passive: false })
+    window.addEventListener('touchend', handleTouchEnd, { passive: true })
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
+      window.removeEventListener('touchstart', handleTouchStart)
+      window.removeEventListener('touchmove', handleTouchMove)
+      window.removeEventListener('touchend', handleTouchEnd)
       keys.current.clear()
     }
-  }, [active, onNitroUpdate])
+  }, [active, activateNitro])
 
   useFrame((state, delta) => {
     if (!active || !carRef.current) return
@@ -750,18 +787,26 @@ function Car({ active, driverName, ghostCarsRef, onNitroUpdate, onPositionUpdate
     }
 
     // Speed multiplier from nitro - HUGE boost (10x)
-    const nitroMultiplier = nitroActive.current ? 10.0 : 1.0
     const maxSpeed = nitroActive.current ? 1.5 : 0.15
     const accel = nitroActive.current ? 0.02 : 0.002
 
-    if (k.has('w') || k.has('arrowup')) speed.current = Math.min(speed.current + accel, maxSpeed)
-    else if (k.has('s') || k.has('arrowdown')) speed.current = Math.max(speed.current - 0.002, -0.08)
+    // Keyboard OR touch for acceleration
+    const wantForward = k.has('w') || k.has('arrowup') || touchActive.current
+    const wantReverse = k.has('s') || k.has('arrowdown')
+
+    if (wantForward) speed.current = Math.min(speed.current + accel, maxSpeed)
+    else if (wantReverse) speed.current = Math.max(speed.current - 0.002, -0.08)
     else speed.current *= 0.95
 
     if (Math.abs(speed.current) > 0.001) {
       const steerSpeed = nitroActive.current ? 0.02 : 0.03
+      // Keyboard steering
       if (k.has('a') || k.has('arrowleft')) rotRef.current += steerSpeed
       if (k.has('d') || k.has('arrowright')) rotRef.current -= steerSpeed
+      // Touch steering
+      if (touchActive.current && Math.abs(touchSteerAmount.current) > 0.05) {
+        rotRef.current -= touchSteerAmount.current * steerSpeed * 1.5
+      }
     }
 
     let newX = posRef.current[0] + Math.sin(rotRef.current) * speed.current

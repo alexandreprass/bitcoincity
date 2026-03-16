@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { satoshisToBtc, getBuildingLabel, VERIFICATION_WALLET } from '@/lib/bitcoin'
@@ -170,6 +170,59 @@ export default function DashboardPage() {
     setSubmittingManual(false)
   }
 
+  // ==================== CHAT ====================
+  const [chatMessages, setChatMessages] = useState<any[]>([])
+  const [chatInput, setChatInput] = useState('')
+  const [sendingChat, setSendingChat] = useState(false)
+  const [chatError, setChatError] = useState('')
+  const chatEndRef = useRef<HTMLDivElement>(null)
+  const chatPollRef = useRef<any>(null)
+
+  const loadChat = useCallback(async () => {
+    try {
+      const res = await fetch('/api/chat?limit=50')
+      const data = await res.json()
+      if (data.messages) setChatMessages(data.messages)
+    } catch {}
+  }, [])
+
+  useEffect(() => {
+    loadChat()
+    chatPollRef.current = setInterval(loadChat, 5000) // Poll every 5s
+    return () => { if (chatPollRef.current) clearInterval(chatPollRef.current) }
+  }, [loadChat])
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [chatMessages])
+
+  const handleSendChat = async () => {
+    if (!chatInput.trim() || !userId || !profile) return
+    setSendingChat(true)
+    setChatError('')
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          username: profile.display_name || profile.username || 'Anon',
+          message: chatInput.trim(),
+        }),
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setChatInput('')
+        await loadChat()
+      } else {
+        setChatError(data.error || 'Failed to send')
+      }
+    } catch {
+      setChatError('Failed to send')
+    }
+    setSendingChat(false)
+  }
+
   const walletChangesLeft = profile ? 3 - (profile.wallet_changes || 0) : 3
 
   if (loading) {
@@ -232,6 +285,13 @@ export default function DashboardPage() {
     <>
       <Navbar />
       <div className="min-h-screen pt-24 px-4 max-w-4xl mx-auto pb-12">
+        {/* View Bitcoin City button at top */}
+        <div className="mb-6">
+          <Link href="/" className="btn-bitcoin text-sm !py-3 !px-6 inline-block">
+            View Bitcoin City
+          </Link>
+        </div>
+
         <h1 className="text-3xl font-bold mb-2">
           Welcome, <span className="text-[#f7931a]">{profile?.display_name || 'Citizen'}</span>
           {building?.verified && (
@@ -438,9 +498,6 @@ export default function DashboardPage() {
             {/* Actions */}
             <div className="md:col-span-2 card-dark">
               <div className="flex flex-wrap gap-4 items-center">
-                <Link href="/" className="btn-bitcoin text-sm !py-2">
-                  View Bitcoin City
-                </Link>
                 {walletChangesLeft > 0 ? (
                   <Link href="/verify-wallet" className="text-gray-400 hover:text-white border border-gray-700 px-4 py-2 rounded-lg text-sm transition-colors">
                     Change Wallet ({walletChangesLeft} left)
@@ -449,6 +506,45 @@ export default function DashboardPage() {
                   <span className="text-gray-600 text-sm px-4 py-2">Wallet change limit reached (0 left)</span>
                 )}
               </div>
+            </div>
+
+            {/* City Chat */}
+            <div className="md:col-span-2 card-dark">
+              <h2 className="text-lg font-semibold text-gray-300 mb-4">City Chat</h2>
+              <div className="bg-gray-900/50 rounded-lg border border-gray-800 h-64 overflow-y-auto p-3 mb-3 space-y-2">
+                {chatMessages.length === 0 && (
+                  <p className="text-gray-600 text-sm text-center mt-8">No messages yet. Be the first to say something!</p>
+                )}
+                {chatMessages.map((msg, i) => (
+                  <div key={msg.id || i} className="text-sm">
+                    <span className="text-[#f7931a] font-semibold">{msg.username}</span>
+                    <span className="text-gray-600 text-xs ml-2">
+                      {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    <p className="text-gray-300 mt-0.5 break-words">{msg.message}</p>
+                  </div>
+                ))}
+                <div ref={chatEndRef} />
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !sendingChat) handleSendChat() }}
+                  className="input-dark text-sm flex-1"
+                  placeholder="Type a message..."
+                  maxLength={500}
+                />
+                <button
+                  onClick={handleSendChat}
+                  disabled={sendingChat || !chatInput.trim()}
+                  className="btn-bitcoin text-sm !py-2 !px-4"
+                >
+                  {sendingChat ? '...' : 'Send'}
+                </button>
+              </div>
+              {chatError && <p className="text-red-400 text-xs mt-1">{chatError}</p>}
             </div>
           </div>
         )}
