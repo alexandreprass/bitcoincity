@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bitcoin: #f7931a;
+}
+
+body {
+  background: #0a0a0a;
+  color: #ffffff;
+}
+
+.btn-bitcoin {
+  @apply bg-[#f7931a] hover:bg-[#e2820a] text-black font-bold py-3 px-6 rounded-lg transition-colors duration-200;
+}
+
+.input-dark {
+  @apply w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#f7931a] focus:ring-1 focus:ring-[#f7931a] transition-colors;
+}
+
+.card-dark {
+  @apply bg-gray-900/80 backdrop-blur-sm border border-gray-800 rounded-xl p-6;
+}

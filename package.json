@@ -1,0 +1,31 @@
+{
+  "name": "bitcoincity",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@react-three/drei": "^9.122.0",
+    "@react-three/fiber": "^8.18.0",
+    "@supabase/supabase-js": "^2.99.2",
+    "@types/node": "^20.11.0",
+    "@types/react": "^18.2.0",
+    "@types/three": "^0.183.1",
+    "autoprefixer": "^10.4.27",
+    "next": "^14.2.35",
+    "postcss": "^8.5.8",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwindcss": "^3.4.0",
+    "three": "^0.183.2",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "eslint": "^8.56.0",
+    "eslint-config-next": "^14.2.0"
+  }
+}
