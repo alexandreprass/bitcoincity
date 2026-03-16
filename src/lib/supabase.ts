@@ -9,6 +9,7 @@ export type Profile = {
   id: string
   username: string
   display_name: string
+  wallet_changes: number
   created_at: string
 }
 
@@ -31,5 +32,7 @@ export type Building = {
   position_x: number
   position_z: number
   color: string
+  verified: boolean
+  message: string
   created_at: string
 }

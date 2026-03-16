@@ -33,6 +33,18 @@ export async function POST(request: Request) {
   }
 
   try {
+    // Check wallet change limit
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('wallet_changes')
+      .eq('id', userId)
+      .single()
+
+    const changes = profile?.wallet_changes || 0
+    if (changes >= 3) {
+      return NextResponse.json({ error: 'You have reached the maximum number of wallet changes (3).' }, { status: 403 })
+    }
+
     // Check if wallet is claimed by someone else
     const { data: existing } = await supabase
       .from('wallets')
@@ -109,6 +121,12 @@ export async function POST(request: Request) {
       console.error('Building insert error:', buildingError)
       return NextResponse.json({ error: 'Failed to save building: ' + buildingError.message }, { status: 500 })
     }
+
+    // Increment wallet changes counter
+    await supabase
+      .from('profiles')
+      .update({ wallet_changes: (changes || 0) + 1 })
+      .eq('id', userId)
 
     return NextResponse.json({
       success: true,

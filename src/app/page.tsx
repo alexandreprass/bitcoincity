@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic'
 import Navbar from '@/components/Navbar'
 import Link from 'next/link'
 import type { Building } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 
 const City3D = dynamic(() => import('@/components/City3D'), { ssr: false })
 
@@ -12,8 +13,13 @@ export default function HomePage() {
   const [buildings, setBuildings] = useState<Building[]>([])
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({ citizens: 0, totalBtc: 0 })
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
 
   useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setIsLoggedIn(!!data.user)
+    })
+
     fetch('/api/buildings')
       .then((res) => res.json())
       .then((data) => {
@@ -32,18 +38,20 @@ export default function HomePage() {
     <div className="relative">
       <Navbar />
 
-      {/* Hero overlay */}
-      <div className="absolute top-20 left-0 right-0 z-10 text-center pointer-events-none">
+      {/* Hero overlay - minimal when logged in */}
+      <div className={`absolute top-20 left-0 right-0 z-10 text-center pointer-events-none ${isLoggedIn ? 'opacity-80' : ''}`}>
         <h1 className="text-5xl md:text-7xl font-black text-white drop-shadow-2xl">
           BITCOIN<span className="text-[#f7931a]">CITY</span>
         </h1>
-        <p className="text-lg md:text-xl text-gray-300 mt-3 drop-shadow-lg max-w-xl mx-auto px-4">
-          A city where every citizen is a building.
-          <br />
-          The more BTC you hold, the taller your tower.
-        </p>
+        {!isLoggedIn && (
+          <p className="text-lg md:text-xl text-gray-300 mt-3 drop-shadow-lg max-w-xl mx-auto px-4">
+            A city where every citizen is a building.
+            <br />
+            The more BTC you hold, the taller your tower.
+          </p>
+        )}
 
-        <div className="flex justify-center gap-8 mt-6 text-sm">
+        <div className="flex justify-center gap-8 mt-4 text-sm">
           <div className="bg-black/60 backdrop-blur-sm px-4 py-2 rounded-lg">
             <p className="text-[#f7931a] font-bold text-2xl">{stats.citizens}</p>
             <p className="text-gray-400">Citizens</p>
@@ -54,11 +62,13 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="mt-6 pointer-events-auto">
-          <Link href="/auth/signup" className="btn-bitcoin text-lg px-8 py-4 inline-block">
-            Build Your Tower
-          </Link>
-        </div>
+        {!isLoggedIn && (
+          <div className="mt-6 pointer-events-auto">
+            <Link href="/auth/signup" className="btn-bitcoin text-lg px-8 py-4 inline-block">
+              Build Your Tower
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Bottom legend */}
@@ -73,20 +83,28 @@ export default function HomePage() {
           <span className="text-gray-300">10-100 BTC — Whale Skyscraper</span>
         </div>
         <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: '#4169E1' }} />
+          <span className="text-gray-300">5-10 BTC — Diamond Tower</span>
+        </div>
+        <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: '#4A90D9' }} />
-          <span className="text-gray-300">1-10 BTC — Holder Tower</span>
+          <span className="text-gray-300">3-5 BTC — Platinum Building</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: '#5B8DEF' }} />
+          <span className="text-gray-300">1-3 BTC — Holder Tower</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: '#50C878' }} />
-          <span className="text-gray-300">0.1-1 BTC — Stacker Building</span>
+          <span className="text-gray-300">0.5-1 BTC — Stacker Building</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: '#E8A87C' }} />
-          <span className="text-gray-300">0.01-0.1 BTC — Starter House</span>
+          <span className="text-gray-300">0.1-0.5 BTC — Starter House</span>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: '#8B7355' }} />
-          <span className="text-gray-300">&lt;0.01 BTC — Humble Shack</span>
+          <span className="text-gray-300">&lt;0.1 BTC — Humble Shack</span>
         </div>
       </div>
 
