@@ -69,17 +69,21 @@ export default function VerifyWalletPage() {
 
       setBalanceInfo({ satoshis, btc, label })
 
+      // Delete existing wallet and building first (clean slate for this user)
+      await supabase.from('buildings').delete().eq('user_id', userId)
+      await supabase.from('wallets').delete().eq('user_id', userId)
+
       // Save wallet
       const { error: walletError } = await supabase
         .from('wallets')
-        .upsert({
+        .insert({
           user_id: userId,
           btc_address: trimmed,
           balance_satoshis: satoshis,
           last_updated: new Date().toISOString(),
-        }, { onConflict: 'user_id' })
+        })
 
-      if (walletError) throw walletError
+      if (walletError) throw new Error('Failed to save wallet: ' + walletError.message)
 
       // Calculate building position (spiral)
       const { count } = await supabase
@@ -97,12 +101,12 @@ export default function VerifyWalletPage() {
         .eq('id', userId)
         .single()
 
-      // Create/update building
+      // Create building
       const { getBuildingHeight, getBuildingColor } = await import('@/lib/bitcoin')
 
-      await supabase
+      const { error: buildingError } = await supabase
         .from('buildings')
-        .upsert({
+        .insert({
           user_id: userId,
           username: profile?.username || 'Anon',
           display_name: profile?.display_name || profile?.username || 'Anon',
@@ -112,7 +116,9 @@ export default function VerifyWalletPage() {
           position_x: Math.cos(angle) * radius,
           position_z: Math.sin(angle) * radius,
           color: getBuildingColor(satoshis),
-        }, { onConflict: 'user_id' })
+        })
+
+      if (buildingError) throw new Error('Failed to save building: ' + buildingError.message)
 
       setSuccess(true)
     } catch (err: any) {
