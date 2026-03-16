@@ -35,5 +35,13 @@ export async function GET() {
     return true
   })
 
-  return NextResponse.json({ buildings: filtered })
+  return NextResponse.json(
+    { buildings: filtered },
+    {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache',
+      },
+    }
+  )
 }

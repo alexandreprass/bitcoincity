@@ -2,7 +2,7 @@
 
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls, Text } from '@react-three/drei'
-import { useState, useRef, useCallback, useMemo } from 'react'
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import * as THREE from 'three'
 import type { Building as BuildingType } from '@/lib/supabase'
 import { satoshisToBtc } from '@/lib/bitcoin'
@@ -312,6 +312,104 @@ function Ground() {
   )
 }
 
+function Car({ active }: { active: boolean }) {
+  const carRef = useRef<THREE.Group>(null)
+  const posRef = useRef<[number, number, number]>([0, 0.15, 8])
+  const rotRef = useRef(0)
+  const speed = useRef(0)
+  const keys = useRef<Set<string>>(new Set())
+
+  useEffect(() => {
+    if (!active) {
+      keys.current.clear()
+      speed.current = 0
+      return
+    }
+    const handleKeyDown = (e: KeyboardEvent) => keys.current.add(e.key.toLowerCase())
+    const handleKeyUp = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase())
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+      keys.current.clear()
+    }
+  }, [active])
+
+  useFrame((state) => {
+    if (!active || !carRef.current) return
+    const k = keys.current
+
+    if (k.has('w') || k.has('arrowup')) speed.current = Math.min(speed.current + 0.002, 0.15)
+    else if (k.has('s') || k.has('arrowdown')) speed.current = Math.max(speed.current - 0.002, -0.08)
+    else speed.current *= 0.95
+
+    if (Math.abs(speed.current) > 0.001) {
+      if (k.has('a') || k.has('arrowleft')) rotRef.current += 0.03
+      if (k.has('d') || k.has('arrowright')) rotRef.current -= 0.03
+    }
+
+    const newX = posRef.current[0] + Math.sin(rotRef.current) * speed.current
+    const newZ = posRef.current[2] + Math.cos(rotRef.current) * speed.current
+    posRef.current = [newX, 0.15, newZ]
+
+    carRef.current.position.set(newX, 0.15, newZ)
+    carRef.current.rotation.y = rotRef.current
+
+    const camDist = 4
+    const camHeight = 2
+    const targetCamPos = new THREE.Vector3(
+      newX - Math.sin(rotRef.current) * camDist,
+      camHeight,
+      newZ - Math.cos(rotRef.current) * camDist
+    )
+    state.camera.position.lerp(targetCamPos, 0.05)
+    state.camera.lookAt(newX, 0.5, newZ)
+  })
+
+  if (!active) return null
+
+  return (
+    <group ref={carRef} position={[0, 0.15, 8]}>
+      {/* Car body */}
+      <mesh position={[0, 0.12, 0]}>
+        <boxGeometry args={[0.4, 0.15, 0.8]} />
+        <meshStandardMaterial color="white" metalness={0.6} roughness={0.3} />
+      </mesh>
+      {/* Cabin */}
+      <mesh position={[0, 0.24, -0.05]}>
+        <boxGeometry args={[0.35, 0.12, 0.4]} />
+        <meshStandardMaterial color="#333" metalness={0.8} roughness={0.2} />
+      </mesh>
+      {/* Wheels */}
+      {([[-0.2, 0.05, 0.25], [0.2, 0.05, 0.25], [-0.2, 0.05, -0.25], [0.2, 0.05, -0.25]] as [number, number, number][]).map((pos, i) => (
+        <mesh key={i} position={pos} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.06, 0.06, 0.05]} />
+          <meshStandardMaterial color="#111" />
+        </mesh>
+      ))}
+      {/* Headlights */}
+      <mesh position={[-0.12, 0.12, 0.41]}>
+        <sphereGeometry args={[0.03]} />
+        <meshStandardMaterial emissive="white" emissiveIntensity={2} />
+      </mesh>
+      <mesh position={[0.12, 0.12, 0.41]}>
+        <sphereGeometry args={[0.03]} />
+        <meshStandardMaterial emissive="white" emissiveIntensity={2} />
+      </mesh>
+      {/* Taillights */}
+      <mesh position={[-0.15, 0.12, -0.41]}>
+        <sphereGeometry args={[0.025]} />
+        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={1.5} />
+      </mesh>
+      <mesh position={[0.15, 0.12, -0.41]}>
+        <sphereGeometry args={[0.025]} />
+        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={1.5} />
+      </mesh>
+    </group>
+  )
+}
+
 function Roads() {
   return (
     <group>
@@ -329,8 +427,8 @@ function Roads() {
           </mesh>
         </group>
       ))}
-      {/* Radial roads */}
-      {[0, Math.PI / 3, (2 * Math.PI) / 3, Math.PI, (4 * Math.PI) / 3, (5 * Math.PI) / 3].map((angle, i) => (
+      {/* Radial roads - 12 spokes for proper street grid between buildings */}
+      {Array.from({ length: 12 }, (_, i) => (i / 12) * Math.PI * 2).map((angle, i) => (
         <mesh
           key={`r-${i}`}
           rotation={[-Math.PI / 2, 0, angle]}
@@ -400,7 +498,7 @@ function CitySign({ count }: { count: number }) {
   )
 }
 
-export default function City3D({ buildings }: { buildings: BuildingType[] }) {
+export default function City3D({ buildings, drivingMode = false }: { buildings: BuildingType[]; drivingMode?: boolean }) {
   const [selectedBuilding, setSelectedBuilding] = useState<BuildingType | null>(null)
 
   const handleBuildingClick = useCallback((b: BuildingType) => {
@@ -439,16 +537,20 @@ export default function City3D({ buildings }: { buildings: BuildingType[] }) {
           <Building key={b.id} data={b} onClick={handleBuildingClick} />
         ))}
 
-        <OrbitControls
-          enablePan={true}
-          enableZoom={true}
-          enableRotate={true}
-          maxPolarAngle={Math.PI / 2.2}
-          minDistance={8}
-          maxDistance={100}
-          autoRotate
-          autoRotateSpeed={0.2}
-        />
+        <Car active={drivingMode} />
+
+        {!drivingMode && (
+          <OrbitControls
+            enablePan={true}
+            enableZoom={true}
+            enableRotate={true}
+            maxPolarAngle={Math.PI / 2.2}
+            minDistance={8}
+            maxDistance={100}
+            autoRotate
+            autoRotateSpeed={0.2}
+          />
+        )}
 
         <fog attach="fog" args={['#0a0a1a', 40, 120]} />
       </Canvas>

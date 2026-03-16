@@ -98,5 +98,12 @@ export async function DELETE(request: Request) {
   await supabase.from('wallets').delete().eq('user_id', userId)
   await supabase.from('profiles').delete().eq('id', userId)
 
+  // Delete from Supabase Auth so the user can't log in anymore
+  const { error: authError } = await supabase.auth.admin.deleteUser(userId)
+  if (authError) {
+    console.error('Failed to delete user from auth:', authError.message)
+    return NextResponse.json({ error: `Data deleted but auth deletion failed: ${authError.message}` }, { status: 500 })
+  }
+
   return NextResponse.json({ success: true })
 }

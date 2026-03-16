@@ -14,6 +14,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({ citizens: 0, totalBtc: 0 })
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [drivingMode, setDrivingMode] = useState(false)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -117,7 +118,26 @@ export default function HomePage() {
           </div>
         </div>
       ) : (
-        <City3D buildings={buildings} />
+        <City3D buildings={buildings} drivingMode={drivingMode} />
+      )}
+
+      {/* Drive Around button */}
+      <button
+        onClick={() => setDrivingMode((prev) => !prev)}
+        className={`fixed bottom-6 right-6 z-20 px-5 py-3 rounded-xl font-bold text-sm shadow-lg transition-all duration-200 ${
+          drivingMode
+            ? 'bg-red-600 hover:bg-red-700 text-white'
+            : 'bg-[#f7931a] hover:bg-[#e8850f] text-black'
+        }`}
+      >
+        {drivingMode ? 'Exit Driving Mode' : 'Drive Around the City'}
+      </button>
+
+      {/* Driving controls hint */}
+      {drivingMode && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 bg-black/80 backdrop-blur-sm text-gray-300 text-xs px-4 py-2 rounded-lg">
+          W/Arrow Up = Forward &nbsp; S/Arrow Down = Reverse &nbsp; A/D or Arrows = Steer
+        </div>
       )}
     </div>
   )
