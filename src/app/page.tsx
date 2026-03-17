@@ -180,7 +180,7 @@ export default function HomePage() {
       {/* Driving controls hint - desktop only */}
       {drivingMode && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 bg-black/80 backdrop-blur-sm text-gray-300 text-xs px-4 py-2 rounded-lg hidden md:block">
-          W = Forward &nbsp; S = Reverse &nbsp; A/D = Steer &nbsp; Q/Shift = Up &nbsp; E/Ctrl = Down &nbsp; SPACE = Nitro
+          Shift/W = Forward &nbsp; S = Reverse &nbsp; A/D = Steer &nbsp; Up = Climb &nbsp; Down = Descend &nbsp; SPACE = Nitro
         </div>
       )}
       {/* Mobile controls hint */}

@@ -110,9 +110,7 @@ export async function POST(request: Request) {
       .select('*', { count: 'exact', head: true })
 
     // Ring-based placement: 2 rows of buildings between each pair of roads
-    const ROAD_RADII = [8, 15, 22, 29, 36, 43, 52] // must match City3D.tsx
-    const SPOKE_COUNT_VAL = 12
-    const SPOKE_HALF_WIDTH = 1.0
+    const ROAD_RADII = [8, 16, 24, 32, 40, 50, 62, 75] // must match City3D.tsx
     const BUILDING_W = 1.4 // must match City3D.tsx BUILDING_WIDTH
     const GAP = 0.66 // ~3 windows gap between buildings
     const ROAD_HW = 0.6 // road half-width
@@ -137,21 +135,10 @@ export async function POST(request: Request) {
 
       for (let s = 0; s < numSlots; s++) {
         const angle = (s / numSlots) * Math.PI * 2
-        // Skip positions that overlap with spokes
-        let onSpoke = false
-        for (let sp = 0; sp < SPOKE_COUNT_VAL; sp++) {
-          const spokeAngle = (sp / SPOKE_COUNT_VAL) * Math.PI * 2
-          let angleDiff = Math.abs(angle - spokeAngle) % (Math.PI * 2)
-          if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff
-          const arcDist = angleDiff * ringR
-          if (arcDist < SPOKE_HALF_WIDTH + 0.3) { onSpoke = true; break }
-        }
-        if (!onSpoke) {
-          allPositions.push({
-            x: Math.cos(angle) * ringR,
-            z: Math.sin(angle) * ringR,
-          })
-        }
+        allPositions.push({
+          x: Math.cos(angle) * ringR,
+          z: Math.sin(angle) * ringR,
+        })
       }
     }
 

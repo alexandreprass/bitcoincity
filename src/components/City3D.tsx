@@ -16,9 +16,9 @@ function tierToHeight(tier: number): number {
 const BUILDING_WIDTH = 1.4 // compact width (3 windows per side)
 const FLOOR_HEIGHT = 0.55 // each visual floor height
 const WINDOW_COLS = 3 // 3 windows per side (was 5, reduced to fit between roads)
-const CITY_BOUNDARY_RADIUS = 62 // invisible wall radius
-const GUARDRAIL_RADIUS = 58 // visible guardrail radius
-const ALL_ROAD_RADII = [8, 15, 22, 29, 36, 43, 52]
+const CITY_BOUNDARY_RADIUS = 90 // invisible wall radius
+const GUARDRAIL_RADIUS = 85 // visible guardrail radius
+const ALL_ROAD_RADII = [8, 16, 24, 32, 40, 50, 62, 75]
 const SPOKE_COUNT = 12
 
 // Modern glass/steel color palette per tier
@@ -265,9 +265,7 @@ function Building({ data, onClick }: { data: BuildingType; onClick: (b: Building
       {/* Main body */}
       <mesh
         position={[0, height / 2 + 0.16, 0]}
-        castShadow
-        receiveShadow
-        onClick={(e) => { e.stopPropagation(); onClick(data) }}
+                      onClick={(e) => { e.stopPropagation(); onClick(data) }}
         onPointerOver={() => setHovered(true)}
         onPointerOut={() => setHovered(false)}
       >
@@ -478,7 +476,7 @@ function Guardrails() {
 
 function NitroFlame({ active }: { active: boolean }) {
   const ref = useRef<THREE.Group>(null)
-  useFrame((state) => {
+  useFrame(() => {
     if (!ref.current) return
     ref.current.visible = active
     if (active) {
@@ -489,9 +487,9 @@ function NitroFlame({ active }: { active: boolean }) {
 
   return (
     <group ref={ref} visible={false}>
-      {/* Blue core flame */}
-      <mesh position={[-0.08, 0.12, -0.6]}>
-        <coneGeometry args={[0.06, 0.4, 6]} />
+      {/* Blue core flames - pointing backward (rotated so cone tip faces -Z) */}
+      <mesh position={[-0.08, 0, -0.6]} rotation={[Math.PI / 2, 0, 0]}>
+        <coneGeometry args={[0.06, 0.5, 6]} />
         <meshStandardMaterial
           color="#0066ff"
           emissive="#0088ff"
@@ -500,8 +498,8 @@ function NitroFlame({ active }: { active: boolean }) {
           opacity={0.9}
         />
       </mesh>
-      <mesh position={[0.08, 0.12, -0.6]}>
-        <coneGeometry args={[0.06, 0.4, 6]} />
+      <mesh position={[0.08, 0, -0.6]} rotation={[Math.PI / 2, 0, 0]}>
+        <coneGeometry args={[0.06, 0.5, 6]} />
         <meshStandardMaterial
           color="#0066ff"
           emissive="#0088ff"
@@ -510,9 +508,9 @@ function NitroFlame({ active }: { active: boolean }) {
           opacity={0.9}
         />
       </mesh>
-      {/* Orange outer flame */}
-      <mesh position={[-0.08, 0.12, -0.75]}>
-        <coneGeometry args={[0.09, 0.5, 6]} />
+      {/* Orange outer flames - pointing backward */}
+      <mesh position={[-0.08, 0, -0.8]} rotation={[Math.PI / 2, 0, 0]}>
+        <coneGeometry args={[0.1, 0.6, 6]} />
         <meshStandardMaterial
           color="#ff6600"
           emissive="#ff4400"
@@ -521,8 +519,8 @@ function NitroFlame({ active }: { active: boolean }) {
           opacity={0.6}
         />
       </mesh>
-      <mesh position={[0.08, 0.12, -0.75]}>
-        <coneGeometry args={[0.09, 0.5, 6]} />
+      <mesh position={[0.08, 0, -0.8]} rotation={[Math.PI / 2, 0, 0]}>
+        <coneGeometry args={[0.1, 0.6, 6]} />
         <meshStandardMaterial
           color="#ff6600"
           emissive="#ff4400"
@@ -531,8 +529,8 @@ function NitroFlame({ active }: { active: boolean }) {
           opacity={0.6}
         />
       </mesh>
-      {/* Glow light */}
-      <pointLight position={[0, 0.12, -0.8]} intensity={2} distance={3} color="#4488ff" />
+      {/* Glow light behind */}
+      <pointLight position={[0, 0, -0.9]} intensity={2} distance={4} color="#4488ff" />
     </group>
   )
 }
@@ -631,15 +629,6 @@ function GhostCar({ data, myCarPos }: { data: GhostCarData; myCarPos: React.Muta
           </mesh>
         </group>
       ))}
-      {/* Main jets */}
-      <mesh position={[-0.08, -0.14, 0]}>
-        <coneGeometry args={[0.05, 0.3, 6]} />
-        <meshStandardMaterial color="#0066ff" emissive="#0088ff" emissiveIntensity={3} transparent opacity={0.7} />
-      </mesh>
-      <mesh position={[0.08, -0.14, 0]}>
-        <coneGeometry args={[0.05, 0.3, 6]} />
-        <meshStandardMaterial color="#0066ff" emissive="#0088ff" emissiveIntensity={3} transparent opacity={0.7} />
-      </mesh>
       {/* Headlights */}
       <mesh position={[-0.12, 0, 0.43]}>
         <sphereGeometry args={[0.025]} />
@@ -703,8 +692,6 @@ function Car({ active, driverName, ghostCarsRef, onNitroUpdate, onPositionUpdate
   const verticalSpeed = useRef(0)
   const keys = useRef<Set<string>>(new Set())
   const broadcastTimer = useRef(0)
-  const jetRef1 = useRef<THREE.Mesh>(null)
-  const jetRef2 = useRef<THREE.Mesh>(null)
 
   // Nitro state
   const nitroCharges = useRef(2)
@@ -814,15 +801,15 @@ function Car({ active, driverName, ghostCarsRef, onNitroUpdate, onPositionUpdate
     const maxSpeed = nitroActive.current ? 1.5 : 0.2
     const accel = nitroActive.current ? 0.02 : 0.003
 
-    // Forward/back
-    const wantForward = k.has('w') || k.has('arrowup') || touchActive.current
-    const wantReverse = k.has('s') || k.has('arrowdown')
+    // Forward/back: Shift/W = forward, S = reverse
+    const wantForward = k.has('shift') || k.has('w') || touchActive.current
+    const wantReverse = k.has('s')
 
     if (wantForward) speed.current = Math.min(speed.current + accel, maxSpeed)
     else if (wantReverse) speed.current = Math.max(speed.current - 0.003, -0.1)
     else speed.current *= 0.95
 
-    // Steering
+    // Steering: A/D or Left/Right arrows
     if (Math.abs(speed.current) > 0.001) {
       const steerSpeed = nitroActive.current ? 0.02 : 0.03
       if (k.has('a') || k.has('arrowleft')) rotRef.current += steerSpeed
@@ -832,9 +819,9 @@ function Car({ active, driverName, ghostCarsRef, onNitroUpdate, onPositionUpdate
       }
     }
 
-    // Altitude control: Q/E or Shift/Control
-    const wantUp = k.has('q') || k.has('shift')
-    const wantDown = k.has('e') || k.has('control')
+    // Altitude control: Arrow Up/Down or Q/E
+    const wantUp = k.has('arrowup') || k.has('q')
+    const wantDown = k.has('arrowdown') || k.has('e')
     if (wantUp) verticalSpeed.current = Math.min(verticalSpeed.current + 0.003, 0.12)
     else if (wantDown) verticalSpeed.current = Math.max(verticalSpeed.current - 0.003, -0.12)
     else verticalSpeed.current *= 0.9
@@ -865,11 +852,6 @@ function Car({ active, driverName, ghostCarsRef, onNitroUpdate, onPositionUpdate
     const tiltX = verticalSpeed.current * 3 // tilt on altitude change
     carRef.current.rotation.x = tiltZ * 0.3
     carRef.current.rotation.z = 0
-
-    // Jet flame flicker
-    const flicker = 0.7 + Math.random() * 0.6
-    if (jetRef1.current) jetRef1.current.scale.set(1, flicker, 1)
-    if (jetRef2.current) jetRef2.current.scale.set(1, flicker, 1)
 
     // Camera follows behind and above
     const camDist = nitroActive.current ? 7 : 5
@@ -924,18 +906,8 @@ function Car({ active, driverName, ghostCarsRef, onNitroUpdate, onPositionUpdate
         </group>
       ))}
 
-      {/* Main blue jets underneath */}
-      <mesh ref={jetRef1} position={[-0.1, -0.18, 0]}>
-        <coneGeometry args={[0.07, 0.4, 8]} />
-        <meshStandardMaterial color="#0066ff" emissive="#0088ff" emissiveIntensity={3} transparent opacity={0.8} />
-      </mesh>
-      <mesh ref={jetRef2} position={[0.1, -0.18, 0]}>
-        <coneGeometry args={[0.07, 0.4, 8]} />
-        <meshStandardMaterial color="#0066ff" emissive="#0088ff" emissiveIntensity={3} transparent opacity={0.8} />
-      </mesh>
-
-      {/* Jet glow light */}
-      <pointLight position={[0, -0.3, 0]} intensity={1.5} distance={4} color="#4488ff" />
+      {/* Jet glow light under car */}
+      <pointLight position={[0, -0.2, 0]} intensity={1.0} distance={3} color="#4488ff" />
 
       {/* Headlights */}
       <mesh position={[-0.13, 0, 0.46]}>
@@ -996,18 +968,7 @@ function Roads() {
           </mesh>
         </group>
       ))}
-      {/* Radial roads - spokes connecting the rings */}
-      {Array.from({ length: SPOKE_COUNT }, (_, i) => (i / SPOKE_COUNT) * Math.PI * 2).map((angle, i) => (
-        <group key={`spoke-${i}`}>
-          <mesh
-            rotation={[-Math.PI / 2, 0, angle]}
-            position={[Math.cos(angle) * 30, 0.006, Math.sin(angle) * 30]}
-          >
-            <planeGeometry args={[1.0, 60]} />
-            <primitive object={roadMat} attach="material" />
-          </mesh>
-        </group>
-      ))}
+      {/* Radial spokes removed - only circular roads remain */}
     </group>
   )
 }
@@ -1061,8 +1022,6 @@ type FlyingCarConfig = {
 
 function FlyingCar({ config, index, onClickCar, positionsRef }: { config: FlyingCarConfig; index: number; onClickCar?: (idx: number) => void; positionsRef?: React.MutableRefObject<{ x: number; y: number; z: number; rot: number }[]> }) {
   const ref = useRef<THREE.Group>(null)
-  const jetRef1 = useRef<THREE.Mesh>(null)
-  const jetRef2 = useRef<THREE.Mesh>(null)
   const bannerRef = useRef<THREE.Mesh>(null)
 
   // Free-roam state
@@ -1120,11 +1079,6 @@ function FlyingCar({ config, index, onClickCar, positionsRef }: { config: Flying
     ref.current.rotation.z = -rotDiff * 0.3
     ref.current.rotation.x = Math.min(0.15, dist * 0.01) * 0.3
 
-    // Jet flame flicker
-    const flicker = 0.7 + Math.random() * 0.6
-    if (jetRef1.current) jetRef1.current.scale.set(1, flicker, 1)
-    if (jetRef2.current) jetRef2.current.scale.set(1, flicker, 1)
-
     // Store position for camera follow
     if (positionsRef?.current) {
       positionsRef.current[index] = { x: pos.current.x, y: pos.current.y + bob, z: pos.current.z, rot: rotY.current }
@@ -1176,27 +1130,8 @@ function FlyingCar({ config, index, onClickCar, positionsRef }: { config: Flying
         </group>
       ))}
 
-      {/* Main blue jets underneath (2 big ones) */}
-      <mesh ref={jetRef1} position={[-0.1, -0.15, 0]}>
-        <coneGeometry args={[0.06, 0.35, 8]} />
-        <meshStandardMaterial
-          color="#0066ff"
-          emissive="#0088ff"
-          emissiveIntensity={3}
-          transparent
-          opacity={0.8}
-        />
-      </mesh>
-      <mesh ref={jetRef2} position={[0.1, -0.15, 0]}>
-        <coneGeometry args={[0.06, 0.35, 8]} />
-        <meshStandardMaterial
-          color="#0066ff"
-          emissive="#0088ff"
-          emissiveIntensity={3}
-          transparent
-          opacity={0.8}
-        />
-      </mesh>
+      {/* Glow light under NPC car */}
+      <pointLight position={[0, -0.15, 0]} intensity={0.8} distance={2.5} color="#4488ff" />
 
       {/* Headlights */}
       <mesh position={[-0.1, 0, 0.46]}>
@@ -1251,7 +1186,7 @@ function NPCCars({ onClickCar, positionsRef }: { onClickCar?: (idx: number) => v
       const angle = Math.random() * Math.PI * 2
       const r = 10 + Math.random() * 35
       arr.push({
-        speed: 4 + Math.random() * 6, // 4-10 units/sec
+        speed: 1.5 + Math.random() * 2.5, // 1.5-4 units/sec (slow cruising)
         flyHeight: 3 + Math.random() * 10, // 3-13 height
         color: colors[i % colors.length],
         startX: Math.cos(angle) * r,
@@ -1660,8 +1595,7 @@ export default function City3D({ buildings, drivingMode = false, driverName = ''
         <directionalLight
           position={[30, 40, 20]}
           intensity={1.6}
-          castShadow
-          shadow-mapSize-width={2048}
+                   shadow-mapSize-width={2048}
           shadow-mapSize-height={2048}
           color="#ffeedd"
         />
@@ -1698,7 +1632,7 @@ export default function City3D({ buildings, drivingMode = false, driverName = ''
           />
         )}
 
-        <fog attach="fog" args={['#2d1a0a', 60, 150]} />
+        <fog attach="fog" args={['#2d1a0a', 80, 200]} />
       </Canvas>
     </div>
   )
