@@ -18,7 +18,7 @@ const FLOOR_HEIGHT = 0.55 // each visual floor height
 const WINDOW_COLS = 3 // 3 windows per side (was 5, reduced to fit between roads)
 const CITY_BOUNDARY_RADIUS = 62 // invisible wall radius
 const GUARDRAIL_RADIUS = 58 // visible guardrail radius
-const ALL_ROAD_RADII = [8, 11, 15, 18, 22, 26, 30, 35, 40, 46, 52]
+const ALL_ROAD_RADII = [8, 15, 22, 29, 36, 43, 52]
 const SPOKE_COUNT = 12
 
 // Modern glass/steel color palette per tier
@@ -925,7 +925,6 @@ function Car({ active, driverName, ghostCarsRef, onNitroUpdate, onPositionUpdate
 function Roads() {
   const roadMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#1e1e2a' }), [])
   const laneMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#444455' }), [])
-  const edgeMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#333340' }), [])
 
   return (
     <group>
@@ -939,10 +938,6 @@ function Roads() {
           <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]}>
             <ringGeometry args={[radius - 0.04, radius + 0.04, 48]} />
             <primitive object={laneMat} attach="material" />
-          </mesh>
-          <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.011, 0]}>
-            <ringGeometry args={[radius + 0.5, radius + 0.56, 48]} />
-            <primitive object={edgeMat} attach="material" />
           </mesh>
         </group>
       ))}

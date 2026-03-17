@@ -5,17 +5,21 @@ export const dynamic = 'force-dynamic'
 export const fetchCache = 'force-no-store'
 
 // Ring-based placement constants (must match City3D.tsx and connect-wallet)
-const ALL_ROAD_RADII = [8, 11, 15, 18, 22, 26, 30, 35, 40, 46, 52]
+const ALL_ROAD_RADII = [8, 15, 22, 29, 36, 43, 52]
 const SPOKE_COUNT_VAL = 12
 const SPOKE_HALF_WIDTH = 1.0
 const BUILDING_W = 1.4 // must match City3D.tsx BUILDING_WIDTH
 const GAP = 0.66 // ~3 windows gap between buildings
+const ROAD_HW = 0.6 // road half-width
 
-// Pre-calculate all valid building positions (rings between roads)
+// Pre-calculate all valid building positions (2 rings between each pair of roads)
 const BUILDING_RINGS: number[] = []
-BUILDING_RINGS.push((3.5 + ALL_ROAD_RADII[0]) / 2) // between mega building and first road
+BUILDING_RINGS.push((3.5 + ALL_ROAD_RADII[0] - ROAD_HW) / 2) // between mega building and first road
 for (let i = 0; i < ALL_ROAD_RADII.length - 1; i++) {
-  BUILDING_RINGS.push((ALL_ROAD_RADII[i] + ALL_ROAD_RADII[i + 1]) / 2)
+  const innerEdge = ALL_ROAD_RADII[i] + ROAD_HW
+  const outerEdge = ALL_ROAD_RADII[i + 1] - ROAD_HW
+  BUILDING_RINGS.push(innerEdge + (outerEdge - innerEdge) * 0.33)
+  BUILDING_RINGS.push(innerEdge + (outerEdge - innerEdge) * 0.67)
 }
 BUILDING_RINGS.push(ALL_ROAD_RADII[ALL_ROAD_RADII.length - 1] + 3) // after last road
 

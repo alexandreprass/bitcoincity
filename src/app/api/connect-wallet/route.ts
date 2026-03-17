@@ -109,18 +109,22 @@ export async function POST(request: Request) {
       .from('buildings')
       .select('*', { count: 'exact', head: true })
 
-    // Ring-based placement: buildings sit in rings between road rings
-    const ROAD_RADII = [8, 11, 15, 18, 22, 26, 30, 35, 40, 46, 52]
+    // Ring-based placement: 2 rows of buildings between each pair of roads
+    const ROAD_RADII = [8, 15, 22, 29, 36, 43, 52] // must match City3D.tsx
     const SPOKE_COUNT_VAL = 12
     const SPOKE_HALF_WIDTH = 1.0
     const BUILDING_W = 1.4 // must match City3D.tsx BUILDING_WIDTH
     const GAP = 0.66 // ~3 windows gap between buildings
+    const ROAD_HW = 0.6 // road half-width
 
-    // Building ring radii = midpoints between consecutive road rings (and before first / after last)
+    // Building ring radii: 2 rings between each pair of roads, 1 before first, 1 after last
     const BUILDING_RINGS: number[] = []
-    BUILDING_RINGS.push((3.5 + ROAD_RADII[0]) / 2) // between mega building and first road
+    BUILDING_RINGS.push((3.5 + ROAD_RADII[0] - ROAD_HW) / 2) // between mega building and first road
     for (let i = 0; i < ROAD_RADII.length - 1; i++) {
-      BUILDING_RINGS.push((ROAD_RADII[i] + ROAD_RADII[i + 1]) / 2)
+      const innerEdge = ROAD_RADII[i] + ROAD_HW
+      const outerEdge = ROAD_RADII[i + 1] - ROAD_HW
+      BUILDING_RINGS.push(innerEdge + (outerEdge - innerEdge) * 0.33)
+      BUILDING_RINGS.push(innerEdge + (outerEdge - innerEdge) * 0.67)
     }
     BUILDING_RINGS.push(ROAD_RADII[ROAD_RADII.length - 1] + 3) // after last road
 
