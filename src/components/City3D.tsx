@@ -649,125 +649,219 @@ function Character({ walking, running }: { walking: boolean; running: boolean })
   const rightArmRef = useRef<THREE.Group>(null)
   const leftLegRef = useRef<THREE.Group>(null)
   const rightLegRef = useRef<THREE.Group>(null)
+  const bodyBobRef = useRef(0)
 
   useFrame((state) => {
     if (!walking && !running) {
-      // Idle pose
-      if (leftArmRef.current) leftArmRef.current.rotation.x = 0
-      if (rightArmRef.current) rightArmRef.current.rotation.x = 0
-      if (leftLegRef.current) leftLegRef.current.rotation.x = 0
-      if (rightLegRef.current) rightLegRef.current.rotation.x = 0
+      if (leftArmRef.current) leftArmRef.current.rotation.x *= 0.9
+      if (rightArmRef.current) rightArmRef.current.rotation.x *= 0.9
+      if (leftLegRef.current) leftLegRef.current.rotation.x *= 0.9
+      if (rightLegRef.current) rightLegRef.current.rotation.x *= 0.9
+      if (groupRef.current) groupRef.current.position.y *= 0.9
       return
     }
-    const speed = running ? 12 : 6
-    const amplitude = running ? 0.8 : 0.5
-    const t = state.clock.elapsedTime * speed
-    // Arms swing opposite to legs
-    if (leftArmRef.current) leftArmRef.current.rotation.x = Math.sin(t) * amplitude
-    if (rightArmRef.current) rightArmRef.current.rotation.x = -Math.sin(t) * amplitude
-    if (leftLegRef.current) leftLegRef.current.rotation.x = -Math.sin(t) * amplitude
-    if (rightLegRef.current) rightLegRef.current.rotation.x = Math.sin(t) * amplitude
+    const spd = running ? 10 : 5
+    const amp = running ? 0.6 : 0.35
+    const t = state.clock.elapsedTime * spd
+    // Smooth sinusoidal limb swing
+    const swing = Math.sin(t) * amp
+    if (leftArmRef.current) leftArmRef.current.rotation.x += (swing - leftArmRef.current.rotation.x) * 0.2
+    if (rightArmRef.current) rightArmRef.current.rotation.x += (-swing - rightArmRef.current.rotation.x) * 0.2
+    if (leftLegRef.current) leftLegRef.current.rotation.x += (-swing - leftLegRef.current.rotation.x) * 0.2
+    if (rightLegRef.current) rightLegRef.current.rotation.x += (swing - rightLegRef.current.rotation.x) * 0.2
+    // Subtle body bob
+    if (groupRef.current) {
+      const bob = Math.abs(Math.sin(t * 2)) * 0.015
+      groupRef.current.position.y += (bob - groupRef.current.position.y) * 0.3
+    }
   })
 
-  // Skin color
-  const skinColor = '#e8b89d'
-  const shirtColor = '#2266cc'
-  const pantsColor = '#334455'
-  const hairColor = '#3a2a1a'
-  const shoeColor = '#222'
+  // Trump-inspired colors
+  const skinColor = '#f0c090'
+  const suitColor = '#1a1a3a' // dark navy suit
+  const pantsColor = '#1a1a3a'
+  const tieColor = '#cc2222' // red tie
+  const hairColor = '#e8b830' // iconic blonde
+  const shoeColor = '#1a1a1a'
+  const shirtColor = '#f0f0f0' // white shirt
 
   return (
-    <group ref={groupRef}>
-      {/* Head */}
-      <mesh position={[0, 1.55, 0]}>
-        <sphereGeometry args={[0.14, 12, 10]} />
+    <group ref={groupRef} scale={[0.55, 0.55, 0.55]}>
+      {/* Head - rounder, slightly wider */}
+      <mesh position={[0, 1.58, 0]}>
+        <sphereGeometry args={[0.16, 20, 16]} />
         <meshStandardMaterial color={skinColor} />
       </mesh>
-      {/* Hair (top of head) */}
-      <mesh position={[0, 1.67, -0.02]}>
-        <sphereGeometry args={[0.13, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
+      {/* Hair - blonde swept back, voluminous top */}
+      <mesh position={[0, 1.72, -0.03]}>
+        <sphereGeometry args={[0.155, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.55]} />
         <meshStandardMaterial color={hairColor} />
       </mesh>
-      {/* Hair sides */}
-      <mesh position={[0, 1.6, -0.06]}>
-        <boxGeometry args={[0.28, 0.1, 0.12]} />
+      {/* Hair front swoop */}
+      <mesh position={[0, 1.7, 0.06]}>
+        <sphereGeometry args={[0.12, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.4]} />
         <meshStandardMaterial color={hairColor} />
       </mesh>
-      {/* Eyes */}
-      <mesh position={[-0.05, 1.56, 0.12]}>
-        <sphereGeometry args={[0.02, 6, 6]} />
+      {/* Hair sides - swept back look */}
+      <mesh position={[-0.13, 1.62, -0.05]}>
+        <sphereGeometry args={[0.06, 10, 8]} />
+        <meshStandardMaterial color={hairColor} />
+      </mesh>
+      <mesh position={[0.13, 1.62, -0.05]}>
+        <sphereGeometry args={[0.06, 10, 8]} />
+        <meshStandardMaterial color={hairColor} />
+      </mesh>
+      {/* Hair back */}
+      <mesh position={[0, 1.6, -0.12]}>
+        <sphereGeometry args={[0.12, 10, 8]} />
+        <meshStandardMaterial color={hairColor} />
+      </mesh>
+      {/* Eyes - white */}
+      <mesh position={[-0.055, 1.6, 0.13]}>
+        <sphereGeometry args={[0.025, 12, 10]} />
         <meshStandardMaterial color="white" />
       </mesh>
-      <mesh position={[0.05, 1.56, 0.12]}>
-        <sphereGeometry args={[0.02, 6, 6]} />
+      <mesh position={[0.055, 1.6, 0.13]}>
+        <sphereGeometry args={[0.025, 12, 10]} />
         <meshStandardMaterial color="white" />
       </mesh>
-      {/* Pupils */}
-      <mesh position={[-0.05, 1.56, 0.135]}>
-        <sphereGeometry args={[0.01, 6, 6]} />
-        <meshStandardMaterial color="#222" />
+      {/* Pupils - blue */}
+      <mesh position={[-0.055, 1.6, 0.152]}>
+        <sphereGeometry args={[0.013, 10, 8]} />
+        <meshStandardMaterial color="#3366aa" />
       </mesh>
-      <mesh position={[0.05, 1.56, 0.135]}>
-        <sphereGeometry args={[0.01, 6, 6]} />
-        <meshStandardMaterial color="#222" />
+      <mesh position={[0.055, 1.6, 0.152]}>
+        <sphereGeometry args={[0.013, 10, 8]} />
+        <meshStandardMaterial color="#3366aa" />
       </mesh>
-      {/* Mouth */}
-      <mesh position={[0, 1.48, 0.12]}>
-        <boxGeometry args={[0.06, 0.015, 0.01]} />
-        <meshStandardMaterial color="#cc6666" />
+      {/* Eyebrows - blonde, slightly furrowed */}
+      <mesh position={[-0.055, 1.635, 0.135]} rotation={[0.15, 0, -0.1]}>
+        <capsuleGeometry args={[0.008, 0.04, 4, 8]} />
+        <meshStandardMaterial color="#c09828" />
       </mesh>
-      {/* Neck */}
-      <mesh position={[0, 1.38, 0]}>
-        <cylinderGeometry args={[0.05, 0.05, 0.06, 8]} />
+      <mesh position={[0.055, 1.635, 0.135]} rotation={[0.15, 0, 0.1]}>
+        <capsuleGeometry args={[0.008, 0.04, 4, 8]} />
+        <meshStandardMaterial color="#c09828" />
+      </mesh>
+      {/* Nose */}
+      <mesh position={[0, 1.55, 0.15]}>
+        <sphereGeometry args={[0.025, 10, 8]} />
         <meshStandardMaterial color={skinColor} />
       </mesh>
-      {/* Torso */}
-      <mesh position={[0, 1.15, 0]}>
-        <boxGeometry args={[0.3, 0.4, 0.18]} />
+      {/* Mouth - slight pout */}
+      <mesh position={[0, 1.5, 0.14]}>
+        <capsuleGeometry args={[0.012, 0.03, 4, 8]} />
+        <meshStandardMaterial color="#cc8877" />
+      </mesh>
+      {/* Chin - slightly prominent */}
+      <mesh position={[0, 1.44, 0.08]}>
+        <sphereGeometry args={[0.06, 10, 8]} />
+        <meshStandardMaterial color={skinColor} />
+      </mesh>
+      {/* Ears */}
+      <mesh position={[-0.16, 1.57, 0]}>
+        <sphereGeometry args={[0.03, 8, 8]} />
+        <meshStandardMaterial color={skinColor} />
+      </mesh>
+      <mesh position={[0.16, 1.57, 0]}>
+        <sphereGeometry args={[0.03, 8, 8]} />
+        <meshStandardMaterial color={skinColor} />
+      </mesh>
+      {/* Neck - thicker */}
+      <mesh position={[0, 1.37, 0]}>
+        <cylinderGeometry args={[0.06, 0.07, 0.08, 12]} />
+        <meshStandardMaterial color={skinColor} />
+      </mesh>
+      {/* Torso - suit jacket, rounded */}
+      <mesh position={[0, 1.13, 0]}>
+        <capsuleGeometry args={[0.12, 0.28, 8, 12]} />
+        <meshStandardMaterial color={suitColor} />
+      </mesh>
+      {/* Suit lapels */}
+      <mesh position={[-0.06, 1.25, 0.1]}>
+        <capsuleGeometry args={[0.015, 0.08, 4, 6]} />
+        <meshStandardMaterial color={suitColor} roughness={0.3} metalness={0.1} />
+      </mesh>
+      <mesh position={[0.06, 1.25, 0.1]}>
+        <capsuleGeometry args={[0.015, 0.08, 4, 6]} />
+        <meshStandardMaterial color={suitColor} roughness={0.3} metalness={0.1} />
+      </mesh>
+      {/* White shirt collar */}
+      <mesh position={[0, 1.32, 0.06]}>
+        <capsuleGeometry args={[0.025, 0.04, 4, 8]} />
         <meshStandardMaterial color={shirtColor} />
       </mesh>
+      {/* Red tie */}
+      <mesh position={[0, 1.18, 0.11]}>
+        <capsuleGeometry args={[0.018, 0.18, 4, 6]} />
+        <meshStandardMaterial color={tieColor} />
+      </mesh>
+      {/* Tie knot */}
+      <mesh position={[0, 1.29, 0.1]}>
+        <sphereGeometry args={[0.022, 8, 6]} />
+        <meshStandardMaterial color={tieColor} />
+      </mesh>
       {/* Left arm */}
-      <group ref={leftArmRef} position={[-0.2, 1.3, 0]}>
-        <mesh position={[0, -0.15, 0]}>
-          <boxGeometry args={[0.08, 0.3, 0.08]} />
-          <meshStandardMaterial color={shirtColor} />
+      <group ref={leftArmRef} position={[-0.17, 1.25, 0]}>
+        {/* Upper arm */}
+        <mesh position={[0, -0.1, 0]}>
+          <capsuleGeometry args={[0.04, 0.14, 6, 8]} />
+          <meshStandardMaterial color={suitColor} />
+        </mesh>
+        {/* Lower arm */}
+        <mesh position={[0, -0.25, 0]}>
+          <capsuleGeometry args={[0.035, 0.1, 6, 8]} />
+          <meshStandardMaterial color={suitColor} />
         </mesh>
         {/* Hand */}
-        <mesh position={[0, -0.32, 0]}>
-          <sphereGeometry args={[0.04, 6, 6]} />
+        <mesh position={[0, -0.34, 0]}>
+          <sphereGeometry args={[0.035, 10, 8]} />
           <meshStandardMaterial color={skinColor} />
         </mesh>
       </group>
       {/* Right arm */}
-      <group ref={rightArmRef} position={[0.2, 1.3, 0]}>
-        <mesh position={[0, -0.15, 0]}>
-          <boxGeometry args={[0.08, 0.3, 0.08]} />
-          <meshStandardMaterial color={shirtColor} />
+      <group ref={rightArmRef} position={[0.17, 1.25, 0]}>
+        <mesh position={[0, -0.1, 0]}>
+          <capsuleGeometry args={[0.04, 0.14, 6, 8]} />
+          <meshStandardMaterial color={suitColor} />
         </mesh>
-        <mesh position={[0, -0.32, 0]}>
-          <sphereGeometry args={[0.04, 6, 6]} />
+        <mesh position={[0, -0.25, 0]}>
+          <capsuleGeometry args={[0.035, 0.1, 6, 8]} />
+          <meshStandardMaterial color={suitColor} />
+        </mesh>
+        <mesh position={[0, -0.34, 0]}>
+          <sphereGeometry args={[0.035, 10, 8]} />
           <meshStandardMaterial color={skinColor} />
         </mesh>
       </group>
       {/* Left leg */}
-      <group ref={leftLegRef} position={[-0.08, 0.9, 0]}>
-        <mesh position={[0, -0.2, 0]}>
-          <boxGeometry args={[0.1, 0.4, 0.1]} />
+      <group ref={leftLegRef} position={[-0.065, 0.88, 0]}>
+        <mesh position={[0, -0.15, 0]}>
+          <capsuleGeometry args={[0.045, 0.18, 6, 8]} />
           <meshStandardMaterial color={pantsColor} />
         </mesh>
+        <mesh position={[0, -0.32, 0]}>
+          <capsuleGeometry args={[0.04, 0.12, 6, 8]} />
+          <meshStandardMaterial color={pantsColor} />
+        </mesh>
+        {/* Shoe */}
         <mesh position={[0, -0.42, 0.02]}>
-          <boxGeometry args={[0.1, 0.06, 0.14]} />
+          <capsuleGeometry args={[0.035, 0.06, 4, 8]} />
           <meshStandardMaterial color={shoeColor} />
         </mesh>
       </group>
       {/* Right leg */}
-      <group ref={rightLegRef} position={[0.08, 0.9, 0]}>
-        <mesh position={[0, -0.2, 0]}>
-          <boxGeometry args={[0.1, 0.4, 0.1]} />
+      <group ref={rightLegRef} position={[0.065, 0.88, 0]}>
+        <mesh position={[0, -0.15, 0]}>
+          <capsuleGeometry args={[0.045, 0.18, 6, 8]} />
+          <meshStandardMaterial color={pantsColor} />
+        </mesh>
+        <mesh position={[0, -0.32, 0]}>
+          <capsuleGeometry args={[0.04, 0.12, 6, 8]} />
           <meshStandardMaterial color={pantsColor} />
         </mesh>
         <mesh position={[0, -0.42, 0.02]}>
-          <boxGeometry args={[0.1, 0.06, 0.14]} />
+          <capsuleGeometry args={[0.035, 0.06, 4, 8]} />
           <meshStandardMaterial color={shoeColor} />
         </mesh>
       </group>
@@ -822,12 +916,13 @@ function Walker({ active, driverName, onPositionUpdate }: { active: boolean; dri
     else if (wantBack) speed.current = Math.max(speed.current - 0.003, -0.03)
     else speed.current *= 0.85
 
-    // Steering
-    if (k.has('a') || k.has('arrowleft')) rotRef.current += 0.04
-    if (k.has('d') || k.has('arrowright')) rotRef.current -= 0.04
+    // Steering - fast and responsive turning
+    const turnSpeed = 0.07
+    if (k.has('a') || k.has('arrowleft')) rotRef.current += turnSpeed
+    if (k.has('d') || k.has('arrowright')) rotRef.current -= turnSpeed
 
     let newX = posRef.current[0] + Math.sin(rotRef.current) * speed.current
-    const newY = 0.45 // ground level (feet on ground)
+    const newY = 0.25 // ground level (feet on ground, smaller character)
     let newZ = posRef.current[2] + Math.cos(rotRef.current) * speed.current
 
     // Boundary
@@ -847,16 +942,16 @@ function Walker({ active, driverName, onPositionUpdate }: { active: boolean; dri
     setIsWalking(walking)
     setIsRunning(walking && running)
 
-    // Camera follows behind
-    const camDist = 4
-    const camHeight = newY + 2.5
+    // Camera follows behind - closer for small character
+    const camDist = 3
+    const camHeight = newY + 1.8
     const targetCam = new THREE.Vector3(
       newX - Math.sin(rotRef.current) * camDist,
       camHeight,
       newZ - Math.cos(rotRef.current) * camDist
     )
-    state.camera.position.lerp(targetCam, 0.06)
-    state.camera.lookAt(newX, newY + 1, newZ)
+    state.camera.position.lerp(targetCam, 0.08)
+    state.camera.lookAt(newX, newY + 0.5, newZ)
 
     // Broadcast
     broadcastTimer.current += dt
@@ -869,12 +964,12 @@ function Walker({ active, driverName, onPositionUpdate }: { active: boolean; dri
   if (!active) return null
 
   return (
-    <group ref={walkerRef} position={[0, 0.45, 8]}>
+    <group ref={walkerRef} position={[0, 0.25, 8]}>
       <Character walking={isWalking} running={isRunning} />
       {driverName && (
         <Text
-          position={[0, 2, 0]}
-          fontSize={0.15}
+          position={[0, 1.15, 0]}
+          fontSize={0.12}
           color="#00ff88"
           anchorX="center"
           anchorY="bottom"
@@ -973,8 +1068,8 @@ function GhostCar({ data, myCarPos }: { data: GhostCarData; myCarPos: React.Muta
       <group ref={ref} position={[data.x, data.y, data.z]} rotation={[0, data.rot, 0]}>
         <Character walking={true} running={false} />
         <Text
-          position={[0, 2, 0]}
-          fontSize={0.15}
+          position={[0, 1.15, 0]}
+          fontSize={0.12}
           color="#00ff88"
           anchorX="center"
           anchorY="bottom"
