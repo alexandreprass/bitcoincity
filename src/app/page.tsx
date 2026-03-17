@@ -173,14 +173,14 @@ export default function HomePage() {
               : 'bg-[#f7931a] hover:bg-[#e8850f] text-black'
           }`}
         >
-          {drivingMode ? 'Exit Driving Mode' : 'Drive Around the City'}
+          {drivingMode ? 'Exit Flying Mode' : 'Fly Around the City'}
         </button>
       )}
 
       {/* Driving controls hint - desktop only */}
       {drivingMode && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 bg-black/80 backdrop-blur-sm text-gray-300 text-xs px-4 py-2 rounded-lg hidden md:block">
-          W/Arrow Up = Forward &nbsp; S/Arrow Down = Reverse &nbsp; A/D or Arrows = Steer &nbsp; SPACE = Nitro Boost
+          W = Forward &nbsp; S = Reverse &nbsp; A/D = Steer &nbsp; Q/Shift = Up &nbsp; E/Ctrl = Down &nbsp; SPACE = Nitro
         </div>
       )}
       {/* Mobile controls hint */}

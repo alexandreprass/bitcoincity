@@ -417,15 +417,10 @@ function BuildingPopup({ building, onClose }: { building: BuildingType; onClose:
 function Ground() {
   return (
     <>
-      {/* Main ground - warm lighter gray */}
+      {/* Main ground - dark grass */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.01, 0]} receiveShadow>
         <circleGeometry args={[120, 64]} />
-        <meshStandardMaterial color="#2e2820" />
-      </mesh>
-      {/* Grass/park areas */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
-        <ringGeometry args={[4, 5.5, 64]} />
-        <meshStandardMaterial color="#2a3a2a" />
+        <meshStandardMaterial color="#1a2e1a" />
       </mesh>
     </>
   )
@@ -614,53 +609,67 @@ function GhostCar({ data, myCarPos }: { data: GhostCarData; myCarPos: React.Muta
 
   return (
     <group ref={ref} position={[data.x, data.y, data.z]} rotation={[0, data.rot, 0]}>
-      {/* Ghost car body - slightly transparent */}
-      <mesh position={[0, 0.12, 0]}>
-        <boxGeometry args={[0.4, 0.15, 0.8]} />
-        <meshStandardMaterial color="#f7931a" metalness={0.6} roughness={0.3} transparent opacity={0.85} />
+      {/* Ghost flying car body */}
+      <mesh position={[0, 0, 0]}>
+        <boxGeometry args={[0.4, 0.12, 0.85]} />
+        <meshStandardMaterial color="#f7931a" metalness={0.7} roughness={0.2} transparent opacity={0.85} />
       </mesh>
-      <mesh position={[0, 0.24, -0.05]}>
-        <boxGeometry args={[0.35, 0.12, 0.4]} />
+      <mesh position={[0, 0.1, -0.05]}>
+        <boxGeometry args={[0.32, 0.1, 0.3]} />
         <meshStandardMaterial color="#222" metalness={0.8} roughness={0.2} transparent opacity={0.85} />
       </mesh>
-      {/* Wheels */}
-      {([[-0.2, 0.05, 0.25], [0.2, 0.05, 0.25], [-0.2, 0.05, -0.25], [0.2, 0.05, -0.25]] as [number, number, number][]).map((pos, i) => (
-        <mesh key={i} position={pos} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.06, 0.06, 0.05]} />
-          <meshStandardMaterial color="#111" />
-        </mesh>
+      {/* Wheels pointing down with jets */}
+      {([[-0.22, -0.1, 0.28], [0.22, -0.1, 0.28], [-0.22, -0.1, -0.28], [0.22, -0.1, -0.28]] as [number, number, number][]).map((wpos, i) => (
+        <group key={i} position={wpos}>
+          <mesh rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.05, 0.05, 0.04]} />
+            <meshStandardMaterial color="#222" metalness={0.6} />
+          </mesh>
+          <mesh position={[0, -0.07, 0]}>
+            <coneGeometry args={[0.035, 0.12, 6]} />
+            <meshStandardMaterial color="#0088ff" emissive="#0066ff" emissiveIntensity={2} transparent opacity={0.6} />
+          </mesh>
+        </group>
       ))}
+      {/* Main jets */}
+      <mesh position={[-0.08, -0.14, 0]}>
+        <coneGeometry args={[0.05, 0.3, 6]} />
+        <meshStandardMaterial color="#0066ff" emissive="#0088ff" emissiveIntensity={3} transparent opacity={0.7} />
+      </mesh>
+      <mesh position={[0.08, -0.14, 0]}>
+        <coneGeometry args={[0.05, 0.3, 6]} />
+        <meshStandardMaterial color="#0066ff" emissive="#0088ff" emissiveIntensity={3} transparent opacity={0.7} />
+      </mesh>
       {/* Headlights */}
-      <mesh position={[-0.12, 0.12, 0.41]}>
-        <sphereGeometry args={[0.03]} />
+      <mesh position={[-0.12, 0, 0.43]}>
+        <sphereGeometry args={[0.025]} />
         <meshStandardMaterial emissive="#ffcc00" emissiveIntensity={1.5} />
       </mesh>
-      <mesh position={[0.12, 0.12, 0.41]}>
-        <sphereGeometry args={[0.03]} />
+      <mesh position={[0.12, 0, 0.43]}>
+        <sphereGeometry args={[0.025]} />
         <meshStandardMaterial emissive="#ffcc00" emissiveIntensity={1.5} />
       </mesh>
       {/* Taillights */}
-      <mesh position={[-0.15, 0.12, -0.41]}>
-        <sphereGeometry args={[0.025]} />
+      <mesh position={[-0.15, 0, -0.43]}>
+        <sphereGeometry args={[0.02]} />
         <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={1.5} />
       </mesh>
-      <mesh position={[0.15, 0.12, -0.41]}>
-        <sphereGeometry args={[0.025]} />
+      <mesh position={[0.15, 0, -0.43]}>
+        <sphereGeometry args={[0.02]} />
         <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={1.5} />
       </mesh>
-      {/* Nitro flame for ghost */}
+      {/* Nitro rear flame for ghost */}
       {data.nitro && (
         <group>
-          <mesh position={[0, 0.12, -0.65]}>
+          <mesh position={[0, 0, -0.6]}>
             <coneGeometry args={[0.08, 0.4, 6]} />
             <meshStandardMaterial color="#0066ff" emissive="#0088ff" emissiveIntensity={3} transparent opacity={0.8} />
           </mesh>
-          <pointLight position={[0, 0.12, -0.7]} intensity={1.5} distance={2} color="#4488ff" />
         </group>
       )}
       {/* Name above ghost car */}
       <Text
-        position={[0, 0.55, 0]}
+        position={[0, 0.45, 0]}
         fontSize={0.15}
         color="#ffcc00"
         anchorX="center"
@@ -688,11 +697,14 @@ function GhostCars({ ghosts, myCarPos }: { ghosts: GhostCarData[]; myCarPos: Rea
 
 function Car({ active, driverName, ghostCarsRef, onNitroUpdate, onPositionUpdate }: { active: boolean; driverName?: string; ghostCarsRef?: React.MutableRefObject<GhostCarData[]>; onNitroUpdate?: (charges: number, recharging: boolean) => void; onPositionUpdate?: (x: number, y: number, z: number, rot: number, nitro: boolean) => void }) {
   const carRef = useRef<THREE.Group>(null)
-  const posRef = useRef<[number, number, number]>([0, 0.15, 8])
+  const posRef = useRef<[number, number, number]>([0, 5, 8])
   const rotRef = useRef(0)
   const speed = useRef(0)
+  const verticalSpeed = useRef(0)
   const keys = useRef<Set<string>>(new Set())
   const broadcastTimer = useRef(0)
+  const jetRef1 = useRef<THREE.Mesh>(null)
+  const jetRef2 = useRef<THREE.Mesh>(null)
 
   // Nitro state
   const nitroCharges = useRef(2)
@@ -705,13 +717,13 @@ function Car({ active, driverName, ghostCarsRef, onNitroUpdate, onPositionUpdate
   // Mobile touch state
   const touchActive = useRef(false)
   const touchStartX = useRef(0)
-  const touchSteerAmount = useRef(0) // -1 to 1
+  const touchSteerAmount = useRef(0)
 
   const activateNitro = useCallback(() => {
     if (nitroCharges.current > 0 && !nitroActive.current) {
       nitroCharges.current -= 1
       nitroActive.current = true
-      nitroTimer.current = 1.0
+      nitroTimer.current = 1.5
       setNitroFlameActive(true)
       if (!nitroRecharging.current) {
         nitroRecharging.current = true
@@ -725,6 +737,7 @@ function Car({ active, driverName, ghostCarsRef, onNitroUpdate, onPositionUpdate
     if (!active) {
       keys.current.clear()
       speed.current = 0
+      verticalSpeed.current = 0
       touchActive.current = false
       touchSteerAmount.current = 0
       return
@@ -750,7 +763,6 @@ function Car({ active, driverName, ghostCarsRef, onNitroUpdate, onPositionUpdate
       const touch = e.touches[0]
       const screenW = window.innerWidth
       const dx = touch.clientX - touchStartX.current
-      // Normalize: full screen width = full steer
       touchSteerAmount.current = Math.max(-1, Math.min(1, dx / (screenW * 0.2)))
     }
     const handleTouchEnd = () => {
@@ -776,7 +788,7 @@ function Car({ active, driverName, ghostCarsRef, onNitroUpdate, onPositionUpdate
   useFrame((state, delta) => {
     if (!active || !carRef.current) return
     const k = keys.current
-    const dt = Math.min(delta, 0.05) // cap delta
+    const dt = Math.min(delta, 0.05)
 
     // Nitro timer
     if (nitroActive.current) {
@@ -799,48 +811,40 @@ function Car({ active, driverName, ghostCarsRef, onNitroUpdate, onPositionUpdate
       }
     }
 
-    // Speed multiplier from nitro - HUGE boost (10x)
-    const maxSpeed = nitroActive.current ? 1.5 : 0.15
-    const accel = nitroActive.current ? 0.02 : 0.002
+    const maxSpeed = nitroActive.current ? 1.5 : 0.2
+    const accel = nitroActive.current ? 0.02 : 0.003
 
-    // Keyboard OR touch for acceleration
+    // Forward/back
     const wantForward = k.has('w') || k.has('arrowup') || touchActive.current
     const wantReverse = k.has('s') || k.has('arrowdown')
 
     if (wantForward) speed.current = Math.min(speed.current + accel, maxSpeed)
-    else if (wantReverse) speed.current = Math.max(speed.current - 0.002, -0.08)
+    else if (wantReverse) speed.current = Math.max(speed.current - 0.003, -0.1)
     else speed.current *= 0.95
 
+    // Steering
     if (Math.abs(speed.current) > 0.001) {
       const steerSpeed = nitroActive.current ? 0.02 : 0.03
-      // Keyboard steering
       if (k.has('a') || k.has('arrowleft')) rotRef.current += steerSpeed
       if (k.has('d') || k.has('arrowright')) rotRef.current -= steerSpeed
-      // Touch steering
       if (touchActive.current && Math.abs(touchSteerAmount.current) > 0.05) {
         rotRef.current -= touchSteerAmount.current * steerSpeed * 1.5
       }
     }
 
-    let newX = posRef.current[0] + Math.sin(rotRef.current) * speed.current
-    let newZ = posRef.current[2] + Math.cos(rotRef.current) * speed.current
-    const newY = 0.15
+    // Altitude control: Q/E or Shift/Control
+    const wantUp = k.has('q') || k.has('shift')
+    const wantDown = k.has('e') || k.has('control')
+    if (wantUp) verticalSpeed.current = Math.min(verticalSpeed.current + 0.003, 0.12)
+    else if (wantDown) verticalSpeed.current = Math.max(verticalSpeed.current - 0.003, -0.12)
+    else verticalSpeed.current *= 0.9
 
-    // Collision with ghost cars - symmetrical horizontal push
-    if (ghostCarsRef?.current) {
-      for (const ghost of ghostCarsRef.current) {
-        const gx = ghost.x - newX
-        const gz = ghost.z - newZ
-        const dist = Math.sqrt(gx * gx + gz * gz)
-        if (dist < 1.2 && dist > 0.01) {
-          // Push MY car backward (away from ghost)
-          const pushForce = 0.15
-          newX -= (gx / dist) * pushForce
-          newZ -= (gz / dist) * pushForce
-          speed.current *= 0.3 // strong brake on collision
-        }
-      }
-    }
+    let newX = posRef.current[0] + Math.sin(rotRef.current) * speed.current
+    let newY = posRef.current[1] + verticalSpeed.current
+    let newZ = posRef.current[2] + Math.cos(rotRef.current) * speed.current
+
+    // Clamp altitude
+    newY = Math.max(2, Math.min(25, newY))
 
     // City boundary clamp
     const distFromCenter = Math.sqrt(newX * newX + newZ * newZ)
@@ -856,17 +860,29 @@ function Car({ active, driverName, ghostCarsRef, onNitroUpdate, onPositionUpdate
     carRef.current.position.set(newX, newY, newZ)
     carRef.current.rotation.y = rotRef.current
 
-    const camDist = nitroActive.current ? 6 : 4
-    const camHeight = nitroActive.current ? 3 : 2
+    // Tilt based on movement
+    const tiltZ = -speed.current * 2 // nose down when accelerating
+    const tiltX = verticalSpeed.current * 3 // tilt on altitude change
+    carRef.current.rotation.x = tiltZ * 0.3
+    carRef.current.rotation.z = 0
+
+    // Jet flame flicker
+    const flicker = 0.7 + Math.random() * 0.6
+    if (jetRef1.current) jetRef1.current.scale.set(1, flicker, 1)
+    if (jetRef2.current) jetRef2.current.scale.set(1, flicker, 1)
+
+    // Camera follows behind and above
+    const camDist = nitroActive.current ? 7 : 5
+    const camHeight = newY + (nitroActive.current ? 3 : 2)
     const targetCamPos = new THREE.Vector3(
       newX - Math.sin(rotRef.current) * camDist,
       camHeight,
       newZ - Math.cos(rotRef.current) * camDist
     )
     state.camera.position.lerp(targetCamPos, nitroActive.current ? 0.08 : 0.05)
-    state.camera.lookAt(newX, 0.5, newZ)
+    state.camera.lookAt(newX, newY, newZ)
 
-    // Broadcast position every ~50ms for smoother multiplayer
+    // Broadcast position
     broadcastTimer.current += dt
     if (broadcastTimer.current > 0.05) {
       broadcastTimer.current = 0
@@ -877,48 +893,76 @@ function Car({ active, driverName, ghostCarsRef, onNitroUpdate, onPositionUpdate
   if (!active) return null
 
   return (
-    <group ref={carRef} position={[0, 0.15, 8]}>
-      {/* Car body */}
-      <mesh position={[0, 0.12, 0]}>
-        <boxGeometry args={[0.4, 0.15, 0.8]} />
-        <meshStandardMaterial color="white" metalness={0.6} roughness={0.3} />
+    <group ref={carRef} position={[0, 5, 8]}>
+      {/* Car body - sleek white */}
+      <mesh position={[0, 0, 0]}>
+        <boxGeometry args={[0.45, 0.14, 0.9]} />
+        <meshStandardMaterial color="white" metalness={0.7} roughness={0.2} />
+      </mesh>
+      {/* Hood */}
+      <mesh position={[0, 0.02, 0.35]}>
+        <boxGeometry args={[0.4, 0.08, 0.25]} />
+        <meshStandardMaterial color="white" metalness={0.7} roughness={0.2} />
       </mesh>
       {/* Cabin */}
-      <mesh position={[0, 0.24, -0.05]}>
-        <boxGeometry args={[0.35, 0.12, 0.4]} />
-        <meshStandardMaterial color="#333" metalness={0.8} roughness={0.2} />
+      <mesh position={[0, 0.12, -0.05]}>
+        <boxGeometry args={[0.38, 0.12, 0.35]} />
+        <meshStandardMaterial color="#222" metalness={0.9} roughness={0.1} />
       </mesh>
-      {/* Wheels */}
-      {([[-0.2, 0.05, 0.25], [0.2, 0.05, 0.25], [-0.2, 0.05, -0.25], [0.2, 0.05, -0.25]] as [number, number, number][]).map((pos, i) => (
-        <mesh key={i} position={pos} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.06, 0.06, 0.05]} />
-          <meshStandardMaterial color="#111" />
-        </mesh>
+
+      {/* Wheels pointing DOWN with blue jets */}
+      {([[-0.24, -0.12, 0.3], [0.24, -0.12, 0.3], [-0.24, -0.12, -0.3], [0.24, -0.12, -0.3]] as [number, number, number][]).map((wpos, i) => (
+        <group key={i} position={wpos}>
+          <mesh rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.055, 0.055, 0.04]} />
+            <meshStandardMaterial color="#222" metalness={0.6} />
+          </mesh>
+          <mesh position={[0, -0.08, 0]}>
+            <coneGeometry args={[0.04, 0.15, 8]} />
+            <meshStandardMaterial color="#0088ff" emissive="#0066ff" emissiveIntensity={2} transparent opacity={0.7} />
+          </mesh>
+        </group>
       ))}
+
+      {/* Main blue jets underneath */}
+      <mesh ref={jetRef1} position={[-0.1, -0.18, 0]}>
+        <coneGeometry args={[0.07, 0.4, 8]} />
+        <meshStandardMaterial color="#0066ff" emissive="#0088ff" emissiveIntensity={3} transparent opacity={0.8} />
+      </mesh>
+      <mesh ref={jetRef2} position={[0.1, -0.18, 0]}>
+        <coneGeometry args={[0.07, 0.4, 8]} />
+        <meshStandardMaterial color="#0066ff" emissive="#0088ff" emissiveIntensity={3} transparent opacity={0.8} />
+      </mesh>
+
+      {/* Jet glow light */}
+      <pointLight position={[0, -0.3, 0]} intensity={1.5} distance={4} color="#4488ff" />
+
       {/* Headlights */}
-      <mesh position={[-0.12, 0.12, 0.41]}>
+      <mesh position={[-0.13, 0, 0.46]}>
         <sphereGeometry args={[0.03]} />
         <meshStandardMaterial emissive="white" emissiveIntensity={2} />
       </mesh>
-      <mesh position={[0.12, 0.12, 0.41]}>
+      <mesh position={[0.13, 0, 0.46]}>
         <sphereGeometry args={[0.03]} />
         <meshStandardMaterial emissive="white" emissiveIntensity={2} />
       </mesh>
       {/* Taillights */}
-      <mesh position={[-0.15, 0.12, -0.41]}>
+      <mesh position={[-0.16, 0, -0.46]}>
         <sphereGeometry args={[0.025]} />
         <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={1.5} />
       </mesh>
-      <mesh position={[0.15, 0.12, -0.41]}>
+      <mesh position={[0.16, 0, -0.46]}>
         <sphereGeometry args={[0.025]} />
         <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={1.5} />
       </mesh>
-      {/* Nitro flames */}
+
+      {/* Nitro rear flames (when boosting) */}
       <NitroFlame active={nitroFlameActive} />
+
       {/* Driver name above car */}
       {driverName && (
         <Text
-          position={[0, 0.55, 0]}
+          position={[0, 0.5, 0]}
           fontSize={0.15}
           color="#f7931a"
           anchorX="center"
@@ -1004,111 +1048,86 @@ function Streetlights() {
   )
 }
 
-// ==================== NPC FERRARI CARS (Navigate entire city) ====================
+// ==================== FLYING CARS (Hover around the city) ====================
 
-type NPCCarRoute = {
-  startRingIdx: number
-  linearSpeed: number
-  startAngle: number
-  clockwise: boolean
+type FlyingCarConfig = {
+  speed: number
+  flyHeight: number
   color: string
+  startX: number
+  startZ: number
+  startAngle: number
 }
 
-function NPCCar({ route, index, onClickCar, positionsRef }: { route: NPCCarRoute; index: number; onClickCar?: (idx: number) => void; positionsRef?: React.MutableRefObject<{ x: number; y: number; z: number; rot: number }[]> }) {
+function FlyingCar({ config, index, onClickCar, positionsRef }: { config: FlyingCarConfig; index: number; onClickCar?: (idx: number) => void; positionsRef?: React.MutableRefObject<{ x: number; y: number; z: number; rot: number }[]> }) {
   const ref = useRef<THREE.Group>(null)
+  const jetRef1 = useRef<THREE.Mesh>(null)
+  const jetRef2 = useRef<THREE.Mesh>(null)
   const bannerRef = useRef<THREE.Mesh>(null)
 
-  // Navigation state machine
-  const navMode = useRef<'ring' | 'spoke'>('ring')
-  const currentRingIdx = useRef(route.startRingIdx)
-  const angle = useRef(route.startAngle)
-  const radius = useRef(ALL_ROAD_RADII[route.startRingIdx])
-  const clockwise = useRef(route.clockwise)
-  const targetRingIdx = useRef(0)
-  const spokeAngle = useRef(0)
-  const ringTimer = useRef(4 + Math.random() * 12)
-  const targetRotY = useRef(0)
+  // Free-roam state
+  const pos = useRef(new THREE.Vector3(config.startX, config.flyHeight, config.startZ))
+  const target = useRef(new THREE.Vector3())
+  const rotY = useRef(config.startAngle)
+  const targetRotY = useRef(config.startAngle)
+  const bobOffset = useRef(Math.random() * Math.PI * 2)
 
-  useFrame((_, delta) => {
+  // Pick a new random target within the city
+  const pickTarget = useCallback(() => {
+    const angle = Math.random() * Math.PI * 2
+    const r = 5 + Math.random() * 45
+    const h = 3 + Math.random() * 12 // fly between 3 and 15 height
+    target.current.set(Math.cos(angle) * r, h, Math.sin(angle) * r)
+  }, [])
+
+  // Initial target
+  useMemo(() => pickTarget(), [pickTarget])
+
+  useFrame((state, delta) => {
     if (!ref.current) return
     const dt = Math.min(delta, 0.05)
 
-    let x: number, z: number, desiredRotY: number
+    // Move toward target
+    const dx = target.current.x - pos.current.x
+    const dy = target.current.y - pos.current.y
+    const dz = target.current.z - pos.current.z
+    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
 
-    if (navMode.current === 'ring') {
-      const r = radius.current
-      const angularSpeed = route.linearSpeed / r
-      const dir = clockwise.current ? -1 : 1
-      angle.current += dir * angularSpeed * dt
-
-      x = Math.cos(angle.current) * r
-      z = Math.sin(angle.current) * r
-
-      // Tangent direction
-      const tx = clockwise.current ? Math.sin(angle.current) : -Math.sin(angle.current)
-      const tz = clockwise.current ? -Math.cos(angle.current) : Math.cos(angle.current)
-      desiredRotY = Math.atan2(tx, tz)
-
-      // Check for lane change
-      ringTimer.current -= dt
-      if (ringTimer.current <= 0) {
-        const normalizedAngle = ((angle.current % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)
-        for (let s = 0; s < SPOKE_COUNT; s++) {
-          const sa = (s / SPOKE_COUNT) * Math.PI * 2
-          let diff = Math.abs(normalizedAngle - sa)
-          if (diff > Math.PI) diff = Math.PI * 2 - diff
-          if (diff < 0.12) {
-            // Pick a random different ring
-            const otherRings = ALL_ROAD_RADII.map((_, i) => i).filter(i => i !== currentRingIdx.current)
-            const pick = otherRings[Math.floor(Math.random() * otherRings.length)]
-            navMode.current = 'spoke'
-            spokeAngle.current = sa
-            angle.current = sa
-            targetRingIdx.current = pick
-            ringTimer.current = 4 + Math.random() * 12
-            break
-          }
-        }
-        if (navMode.current === 'ring') {
-          ringTimer.current = 0.3 // retry soon
-        }
-      }
+    if (dist < 2) {
+      pickTarget()
     } else {
-      // Spoke mode - drive radially to target ring
-      const targetR = ALL_ROAD_RADII[targetRingIdx.current]
-      const dir = targetR > radius.current ? 1 : -1
-      radius.current += dir * route.linearSpeed * dt
-
-      x = Math.cos(spokeAngle.current) * radius.current
-      z = Math.sin(spokeAngle.current) * radius.current
-
-      // Face direction of travel along spoke
-      const dx = Math.cos(spokeAngle.current) * dir
-      const dz = Math.sin(spokeAngle.current) * dir
-      desiredRotY = Math.atan2(dx, dz)
-
-      // Check if reached target ring
-      if (Math.abs(radius.current - targetR) < 0.4) {
-        radius.current = targetR
-        currentRingIdx.current = targetRingIdx.current
-        navMode.current = 'ring'
-        clockwise.current = Math.random() > 0.5
-        angle.current = spokeAngle.current
-      }
+      const step = config.speed * dt
+      pos.current.x += (dx / dist) * step
+      pos.current.y += (dy / dist) * step
+      pos.current.z += (dz / dist) * step
     }
 
-    ref.current.position.set(x, 0.15, z)
+    // Gentle bobbing
+    const bob = Math.sin(state.clock.elapsedTime * 1.5 + bobOffset.current) * 0.15
 
-    // Smooth rotation with wrapping
-    targetRotY.current = desiredRotY
-    let rotDiff = targetRotY.current - ref.current.rotation.y
+    ref.current.position.set(pos.current.x, pos.current.y + bob, pos.current.z)
+
+    // Face movement direction (horizontal only)
+    const desiredRot = Math.atan2(dx, dz)
+    targetRotY.current = desiredRot
+    let rotDiff = targetRotY.current - rotY.current
     if (rotDiff > Math.PI) rotDiff -= Math.PI * 2
     if (rotDiff < -Math.PI) rotDiff += Math.PI * 2
-    ref.current.rotation.y += rotDiff * 0.08
+    rotY.current += rotDiff * 0.04
+    ref.current.rotation.y = rotY.current
+
+    // Slight tilt in movement direction
+    ref.current.rotation.z = -rotDiff * 0.3
+    ref.current.rotation.x = Math.min(0.15, dist * 0.01) * 0.3
+
+    // Jet flame flicker
+    const flicker = 0.7 + Math.random() * 0.6
+    if (jetRef1.current) jetRef1.current.scale.set(1, flicker, 1)
+    if (jetRef2.current) jetRef2.current.scale.set(1, flicker, 1)
 
     // Store position for camera follow
     if (positionsRef?.current) {
-      positionsRef.current[index] = { x, y: 0.15, z, rot: ref.current.rotation.y }
+      positionsRef.current[index] = { x: pos.current.x, y: pos.current.y + bob, z: pos.current.z, rot: rotY.current }
     }
 
     // Rotate banner
@@ -1119,71 +1138,93 @@ function NPCCar({ route, index, onClickCar, positionsRef }: { route: NPCCarRoute
 
   return (
     <group ref={ref} onClick={(e) => { e.stopPropagation(); onClickCar?.(index) }}>
-      {/* Ferrari body - low sleek */}
-      <mesh position={[0, 0.08, 0]}>
-        <boxGeometry args={[0.35, 0.1, 0.9]} />
-        <meshStandardMaterial color={route.color} metalness={0.8} roughness={0.2} />
+      {/* Car body - sleek */}
+      <mesh position={[0, 0, 0]}>
+        <boxGeometry args={[0.4, 0.12, 0.9]} />
+        <meshStandardMaterial color={config.color} metalness={0.8} roughness={0.2} />
       </mesh>
-      {/* Hood slope */}
-      <mesh position={[0, 0.1, 0.35]}>
-        <boxGeometry args={[0.32, 0.06, 0.25]} />
-        <meshStandardMaterial color={route.color} metalness={0.8} roughness={0.2} />
+      {/* Hood */}
+      <mesh position={[0, 0.02, 0.35]}>
+        <boxGeometry args={[0.35, 0.08, 0.25]} />
+        <meshStandardMaterial color={config.color} metalness={0.8} roughness={0.2} />
       </mesh>
-      {/* Cabin - low profile */}
-      <mesh position={[0, 0.18, -0.05]}>
-        <boxGeometry args={[0.3, 0.08, 0.3]} />
+      {/* Cabin */}
+      <mesh position={[0, 0.1, -0.05]}>
+        <boxGeometry args={[0.32, 0.1, 0.32]} />
         <meshStandardMaterial color="#111" metalness={0.9} roughness={0.1} />
       </mesh>
-      {/* Rear spoiler */}
-      <mesh position={[0, 0.16, -0.4]}>
-        <boxGeometry args={[0.35, 0.02, 0.08]} />
-        <meshStandardMaterial color={route.color} metalness={0.7} />
-      </mesh>
-      {/* Spoiler supports */}
-      <mesh position={[-0.12, 0.14, -0.4]}>
-        <boxGeometry args={[0.02, 0.04, 0.02]} />
-        <meshStandardMaterial color="#222" />
-      </mesh>
-      <mesh position={[0.12, 0.14, -0.4]}>
-        <boxGeometry args={[0.02, 0.04, 0.02]} />
-        <meshStandardMaterial color="#222" />
-      </mesh>
-      {/* Wheels */}
-      {([[-0.18, 0.04, 0.28], [0.18, 0.04, 0.28], [-0.18, 0.04, -0.28], [0.18, 0.04, -0.28]] as [number, number, number][]).map((pos, i) => (
-        <mesh key={i} position={pos} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.05, 0.05, 0.04]} />
-          <meshStandardMaterial color="#111" />
-        </mesh>
+
+      {/* Wheels pointing DOWN (hover style) */}
+      {([[-0.22, -0.1, 0.28], [0.22, -0.1, 0.28], [-0.22, -0.1, -0.28], [0.22, -0.1, -0.28]] as [number, number, number][]).map((wpos, i) => (
+        <group key={i} position={wpos}>
+          {/* Wheel rotated downward */}
+          <mesh rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.05, 0.05, 0.04]} />
+            <meshStandardMaterial color="#222" metalness={0.6} />
+          </mesh>
+          {/* Small blue jet glow under each wheel */}
+          <mesh position={[0, -0.08, 0]}>
+            <coneGeometry args={[0.04, 0.15, 8]} />
+            <meshStandardMaterial
+              color="#0088ff"
+              emissive="#0066ff"
+              emissiveIntensity={2}
+              transparent
+              opacity={0.7}
+            />
+          </mesh>
+        </group>
       ))}
+
+      {/* Main blue jets underneath (2 big ones) */}
+      <mesh ref={jetRef1} position={[-0.1, -0.15, 0]}>
+        <coneGeometry args={[0.06, 0.35, 8]} />
+        <meshStandardMaterial
+          color="#0066ff"
+          emissive="#0088ff"
+          emissiveIntensity={3}
+          transparent
+          opacity={0.8}
+        />
+      </mesh>
+      <mesh ref={jetRef2} position={[0.1, -0.15, 0]}>
+        <coneGeometry args={[0.06, 0.35, 8]} />
+        <meshStandardMaterial
+          color="#0066ff"
+          emissive="#0088ff"
+          emissiveIntensity={3}
+          transparent
+          opacity={0.8}
+        />
+      </mesh>
+
       {/* Headlights */}
-      <mesh position={[-0.1, 0.08, 0.46]}>
+      <mesh position={[-0.1, 0, 0.46]}>
         <sphereGeometry args={[0.025]} />
         <meshStandardMaterial emissive="#ffffff" emissiveIntensity={2} />
       </mesh>
-      <mesh position={[0.1, 0.08, 0.46]}>
+      <mesh position={[0.1, 0, 0.46]}>
         <sphereGeometry args={[0.025]} />
         <meshStandardMaterial emissive="#ffffff" emissiveIntensity={2} />
       </mesh>
       {/* Taillights */}
-      <mesh position={[-0.12, 0.08, -0.46]}>
+      <mesh position={[-0.14, 0, -0.46]}>
         <sphereGeometry args={[0.02]} />
         <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={2} />
       </mesh>
-      <mesh position={[0.12, 0.08, -0.46]}>
+      <mesh position={[0.14, 0, -0.46]}>
         <sphereGeometry args={[0.02]} />
         <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={2} />
       </mesh>
 
-      {/* Rotating Bitcoin City Banner (2x bigger) */}
-      <group position={[0, 0.55, 0]}>
-        {/* Pole */}
-        <mesh position={[0, -0.15, 0]}>
-          <cylinderGeometry args={[0.02, 0.02, 0.3]} />
+      {/* Rotating Bitcoin City Banner */}
+      <group position={[0, 0.4, 0]}>
+        <mesh position={[0, -0.1, 0]}>
+          <cylinderGeometry args={[0.02, 0.02, 0.2]} />
           <meshStandardMaterial color="#666" metalness={0.8} />
         </mesh>
-        {/* Rotating banner cylinder - DOUBLED size */}
-        <mesh ref={bannerRef} position={[0, 0.1, 0]}>
-          <cylinderGeometry args={[0.36, 0.36, 0.44, 16, 1, true]} />
+        <mesh ref={bannerRef} position={[0, 0.08, 0]}>
+          <cylinderGeometry args={[0.3, 0.3, 0.36, 12, 1, true]} />
           <meshStandardMaterial
             color="#f7931a"
             emissive="#f7931a"
@@ -1193,9 +1234,8 @@ function NPCCar({ route, index, onClickCar, positionsRef }: { route: NPCCarRoute
             side={THREE.DoubleSide}
           />
         </mesh>
-        {/* BTC logo dot on banner - bigger */}
-        <mesh position={[0, 0.1, 0.37]}>
-          <sphereGeometry args={[0.07]} />
+        <mesh position={[0, 0.08, 0.31]}>
+          <sphereGeometry args={[0.06]} />
           <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.6} />
         </mesh>
       </group>
@@ -1204,17 +1244,19 @@ function NPCCar({ route, index, onClickCar, positionsRef }: { route: NPCCarRoute
 }
 
 function NPCCars({ onClickCar, positionsRef }: { onClickCar?: (idx: number) => void; positionsRef?: React.MutableRefObject<{ x: number; y: number; z: number; rot: number }[]> }) {
-  const routes = useMemo<NPCCarRoute[]>(() => {
-    const ferrariColors = ['#FF2800', '#FFD700', '#000000', '#FFFFFF', '#1E90FF', '#FF4500', '#8B0000', '#00FF7F', '#FF1493', '#00CED1']
-    const arr: NPCCarRoute[] = []
-    // 10 cars, each starts on a different ring, navigates the whole city
+  const configs = useMemo<FlyingCarConfig[]>(() => {
+    const colors = ['#FF2800', '#FFD700', '#1E90FF', '#FF4500', '#00FF7F', '#FF1493', '#00CED1', '#8B00FF', '#FF6347', '#C0C0C0']
+    const arr: FlyingCarConfig[] = []
     for (let i = 0; i < 10; i++) {
+      const angle = Math.random() * Math.PI * 2
+      const r = 10 + Math.random() * 35
       arr.push({
-        startRingIdx: i % ALL_ROAD_RADII.length,
-        linearSpeed: 3 + Math.random() * 4, // 3-7 units/sec
+        speed: 4 + Math.random() * 6, // 4-10 units/sec
+        flyHeight: 3 + Math.random() * 10, // 3-13 height
+        color: colors[i % colors.length],
+        startX: Math.cos(angle) * r,
+        startZ: Math.sin(angle) * r,
         startAngle: Math.random() * Math.PI * 2,
-        clockwise: Math.random() > 0.5,
-        color: ferrariColors[i % ferrariColors.length],
       })
     }
     return arr
@@ -1222,8 +1264,8 @@ function NPCCars({ onClickCar, positionsRef }: { onClickCar?: (idx: number) => v
 
   return (
     <>
-      {routes.map((route, i) => (
-        <NPCCar key={`npc-${i}`} route={route} index={i} onClickCar={onClickCar} positionsRef={positionsRef} />
+      {configs.map((config, i) => (
+        <FlyingCar key={`npc-${i}`} config={config} index={i} onClickCar={onClickCar} positionsRef={positionsRef} />
       ))}
     </>
   )
@@ -1238,14 +1280,14 @@ function NPCCameraFollower({ positionsRef, followIndex }: { positionsRef: React.
     const pos = positionsRef.current[followIndex]
     if (!pos) return
 
-    const camDist = 5
-    const camHeight = 2.5
+    const camDist = 6
+    const camHeight = pos.y + 2
     const behindX = pos.x - Math.sin(pos.rot) * camDist
     const behindZ = pos.z - Math.cos(pos.rot) * camDist
 
     const targetCamPos = new THREE.Vector3(behindX, camHeight, behindZ)
     camera.position.lerp(targetCamPos, 0.06)
-    camera.lookAt(pos.x, 0.5, pos.z)
+    camera.lookAt(pos.x, pos.y, pos.z)
   })
 
   return null
