@@ -13,9 +13,9 @@ function tierToHeight(tier: number): number {
   return 3 + tier * 2 // 5,7,9,11,13,15,17,19
 }
 
-const BUILDING_WIDTH = 2.2 // fixed width for all buildings
+const BUILDING_WIDTH = 1.4 // compact width (3 windows per side)
 const FLOOR_HEIGHT = 0.55 // each visual floor height
-const WINDOW_COLS = 5 // exactly 5 windows per side
+const WINDOW_COLS = 3 // 3 windows per side (was 5, reduced to fit between roads)
 const CITY_BOUNDARY_RADIUS = 62 // invisible wall radius
 const GUARDRAIL_RADIUS = 58 // visible guardrail radius
 const ALL_ROAD_RADII = [8, 11, 15, 18, 22, 26, 30, 35, 40, 46, 52]

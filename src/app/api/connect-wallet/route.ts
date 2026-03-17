@@ -104,48 +104,55 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to save wallet: ' + walletError.message }, { status: 500 })
     }
 
-    // Calculate position (avoiding roads)
+    // Calculate position using ring-based placement (buildings in circles between roads)
     const { count } = await supabase
       .from('buildings')
       .select('*', { count: 'exact', head: true })
 
-    // Road ring radii and spoke config (must match City3D.tsx)
+    // Ring-based placement: buildings sit in rings between road rings
     const ROAD_RADII = [8, 11, 15, 18, 22, 26, 30, 35, 40, 46, 52]
-    const ROAD_HALF_WIDTH = 1.2
     const SPOKE_COUNT_VAL = 12
     const SPOKE_HALF_WIDTH = 1.0
+    const BUILDING_W = 1.4 // must match City3D.tsx BUILDING_WIDTH
+    const GAP = 0.66 // ~3 windows gap between buildings
 
-    const isOnRoad = (r: number, a: number): boolean => {
-      for (const rr of ROAD_RADII) {
-        if (Math.abs(r - rr) < ROAD_HALF_WIDTH) return true
-      }
-      if (r > 3) {
-        for (let s = 0; s < SPOKE_COUNT_VAL; s++) {
-          const spokeAngle = (s / SPOKE_COUNT_VAL) * Math.PI * 2
-          let angleDiff = Math.abs(a - spokeAngle) % (Math.PI * 2)
+    // Building ring radii = midpoints between consecutive road rings (and before first / after last)
+    const BUILDING_RINGS: number[] = []
+    BUILDING_RINGS.push((3.5 + ROAD_RADII[0]) / 2) // between mega building and first road
+    for (let i = 0; i < ROAD_RADII.length - 1; i++) {
+      BUILDING_RINGS.push((ROAD_RADII[i] + ROAD_RADII[i + 1]) / 2)
+    }
+    BUILDING_RINGS.push(ROAD_RADII[ROAD_RADII.length - 1] + 3) // after last road
+
+    // Pre-calculate all valid positions across all rings
+    const allPositions: { x: number; z: number }[] = []
+    for (const ringR of BUILDING_RINGS) {
+      const circumference = 2 * Math.PI * ringR
+      const slotSize = BUILDING_W + GAP
+      const numSlots = Math.floor(circumference / slotSize)
+
+      for (let s = 0; s < numSlots; s++) {
+        const angle = (s / numSlots) * Math.PI * 2
+        // Skip positions that overlap with spokes
+        let onSpoke = false
+        for (let sp = 0; sp < SPOKE_COUNT_VAL; sp++) {
+          const spokeAngle = (sp / SPOKE_COUNT_VAL) * Math.PI * 2
+          let angleDiff = Math.abs(angle - spokeAngle) % (Math.PI * 2)
           if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff
-          const arcDist = angleDiff * r
-          if (arcDist < SPOKE_HALF_WIDTH) return true
+          const arcDist = angleDiff * ringR
+          if (arcDist < SPOKE_HALF_WIDTH + 0.3) { onSpoke = true; break }
+        }
+        if (!onSpoke) {
+          allPositions.push({
+            x: Math.cos(angle) * ringR,
+            z: Math.sin(angle) * ringR,
+          })
         }
       }
-      return false
     }
 
-    // Spiral placement that skips roads and mega building center
-    let idx = count || 0
-    let spiralIdx = 0
-    let angle = 0
-    let radius = 0
-    let validCount = 0
-    while (validCount <= idx) {
-      angle = spiralIdx * 0.8
-      radius = 3.5 + spiralIdx * 0.6 // Start further out (mega building at center)
-      const normalizedAngle = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)
-      if (!isOnRoad(radius, normalizedAngle) && radius >= 3.5) {
-        validCount++
-      }
-      if (validCount <= idx) spiralIdx++
-    }
+    const idx = count || 0
+    const pos = allPositions[idx % allPositions.length]
 
     // Set verification deadline for 1+ BTC holders (7 days from now)
     const btcAmount = satoshisToBtc(satoshis)
@@ -165,8 +172,8 @@ export async function POST(request: Request) {
         btc_address: btcAddress,
         balance_satoshis: satoshis,
         height: getBuildingHeight(satoshis),
-        position_x: Math.cos(angle) * radius,
-        position_z: Math.sin(angle) * radius,
+        position_x: pos.x,
+        position_z: pos.z,
         color: randomColor,
         verification_deadline: verificationDeadline,
       })
