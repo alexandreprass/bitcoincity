@@ -201,7 +201,7 @@ export default function HomePage() {
       )}
       {walkingMode && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 bg-black/80 backdrop-blur-sm text-gray-300 text-xs px-4 py-2 rounded-lg hidden md:block">
-          W = Walk Forward &nbsp; S = Walk Back &nbsp; A/D = Turn &nbsp; SPACE = Run
+          W/S = Move &nbsp; A/D = Strafe &nbsp; Mouse Drag = Rotate Camera &nbsp; SPACE = Run
         </div>
       )}
       {/* Mobile controls hint */}

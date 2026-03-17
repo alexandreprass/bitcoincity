@@ -643,35 +643,34 @@ function TieredCarBody({ tier }: { tier: number }) {
 
 // ==================== WALKING CHARACTER ====================
 
-function Character({ walking, running }: { walking: boolean; running: boolean }) {
+function Character({ walking, running, moveSpeed = 0 }: { walking: boolean; running: boolean; moveSpeed?: number }) {
   const groupRef = useRef<THREE.Group>(null)
   const leftArmRef = useRef<THREE.Group>(null)
   const rightArmRef = useRef<THREE.Group>(null)
   const leftLegRef = useRef<THREE.Group>(null)
   const rightLegRef = useRef<THREE.Group>(null)
-  const bodyBobRef = useRef(0)
 
   useFrame((state) => {
     if (!walking && !running) {
-      if (leftArmRef.current) leftArmRef.current.rotation.x *= 0.9
-      if (rightArmRef.current) rightArmRef.current.rotation.x *= 0.9
-      if (leftLegRef.current) leftLegRef.current.rotation.x *= 0.9
-      if (rightLegRef.current) rightLegRef.current.rotation.x *= 0.9
-      if (groupRef.current) groupRef.current.position.y *= 0.9
+      if (leftArmRef.current) leftArmRef.current.rotation.x *= 0.85
+      if (rightArmRef.current) rightArmRef.current.rotation.x *= 0.85
+      if (leftLegRef.current) leftLegRef.current.rotation.x *= 0.85
+      if (rightLegRef.current) rightLegRef.current.rotation.x *= 0.85
+      if (groupRef.current) groupRef.current.position.y *= 0.85
       return
     }
-    const spd = running ? 10 : 5
-    const amp = running ? 0.6 : 0.35
-    const t = state.clock.elapsedTime * spd
-    // Smooth sinusoidal limb swing
+    // Animation speed proportional to actual movement speed
+    const animSpeed = Math.max(3, Math.abs(moveSpeed) * 60)
+    const amp = Math.min(0.7, Math.abs(moveSpeed) * 4)
+    const t = state.clock.elapsedTime * animSpeed
     const swing = Math.sin(t) * amp
-    if (leftArmRef.current) leftArmRef.current.rotation.x += (swing - leftArmRef.current.rotation.x) * 0.2
-    if (rightArmRef.current) rightArmRef.current.rotation.x += (-swing - rightArmRef.current.rotation.x) * 0.2
-    if (leftLegRef.current) leftLegRef.current.rotation.x += (-swing - leftLegRef.current.rotation.x) * 0.2
-    if (rightLegRef.current) rightLegRef.current.rotation.x += (swing - rightLegRef.current.rotation.x) * 0.2
-    // Subtle body bob
+    if (leftArmRef.current) leftArmRef.current.rotation.x += (swing - leftArmRef.current.rotation.x) * 0.25
+    if (rightArmRef.current) rightArmRef.current.rotation.x += (-swing - rightArmRef.current.rotation.x) * 0.25
+    if (leftLegRef.current) leftLegRef.current.rotation.x += (-swing - leftLegRef.current.rotation.x) * 0.25
+    if (rightLegRef.current) rightLegRef.current.rotation.x += (swing - rightLegRef.current.rotation.x) * 0.25
+    // Body bob proportional to speed
     if (groupRef.current) {
-      const bob = Math.abs(Math.sin(t * 2)) * 0.015
+      const bob = Math.abs(Math.sin(t * 2)) * Math.min(0.02, Math.abs(moveSpeed) * 0.15)
       groupRef.current.position.y += (bob - groupRef.current.position.y) * 0.3
     }
   })
@@ -873,18 +872,25 @@ function Character({ walking, running }: { walking: boolean; running: boolean })
 
 function Walker({ active, driverName, onPositionUpdate }: { active: boolean; driverName?: string; onPositionUpdate?: (x: number, y: number, z: number, rot: number, mode: string) => void }) {
   const walkerRef = useRef<THREE.Group>(null)
-  const posRef = useRef<[number, number, number]>([0, 0, 8])
-  const rotRef = useRef(0)
-  const speed = useRef(0)
+  const posRef = useRef<[number, number, number]>([0, 0.25, 8])
+  const playerRotRef = useRef(0) // player facing direction
+  const cameraAngle = useRef(0) // horizontal orbit angle around player
+  const cameraPitch = useRef(0.3) // vertical angle (0 = level, positive = looking down)
   const keys = useRef<Set<string>>(new Set())
   const broadcastTimer = useRef(0)
+  const isDragging = useRef(false)
+  const lastMouseX = useRef(0)
+  const lastMouseY = useRef(0)
+  const actualSpeed = useRef(0)
   const [isWalking, setIsWalking] = useState(false)
   const [isRunning, setIsRunning] = useState(false)
+  const [moveSpeedState, setMoveSpeedState] = useState(0)
 
   useEffect(() => {
     if (!active) {
       keys.current.clear()
-      speed.current = 0
+      actualSpeed.current = 0
+      isDragging.current = false
       return
     }
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -893,11 +899,60 @@ function Walker({ active, driverName, onPositionUpdate }: { active: boolean; dri
       if (key === ' ') e.preventDefault()
     }
     const handleKeyUp = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase())
+
+    // Mouse drag to orbit camera (GTA style)
+    const handleMouseDown = (e: MouseEvent) => {
+      isDragging.current = true
+      lastMouseX.current = e.clientX
+      lastMouseY.current = e.clientY
+    }
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging.current) return
+      const dx = e.clientX - lastMouseX.current
+      const dy = e.clientY - lastMouseY.current
+      cameraAngle.current -= dx * 0.005
+      cameraPitch.current = Math.max(0.05, Math.min(1.2, cameraPitch.current + dy * 0.003))
+      lastMouseX.current = e.clientX
+      lastMouseY.current = e.clientY
+    }
+    const handleMouseUp = () => { isDragging.current = false }
+
+    // Touch drag for mobile camera orbit
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        isDragging.current = true
+        lastMouseX.current = e.touches[0].clientX
+        lastMouseY.current = e.touches[0].clientY
+      }
+    }
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isDragging.current || e.touches.length !== 1) return
+      const dx = e.touches[0].clientX - lastMouseX.current
+      const dy = e.touches[0].clientY - lastMouseY.current
+      cameraAngle.current -= dx * 0.005
+      cameraPitch.current = Math.max(0.05, Math.min(1.2, cameraPitch.current + dy * 0.003))
+      lastMouseX.current = e.touches[0].clientX
+      lastMouseY.current = e.touches[0].clientY
+    }
+    const handleTouchEnd = () => { isDragging.current = false }
+
     window.addEventListener('keydown', handleKeyDown)
     window.addEventListener('keyup', handleKeyUp)
+    window.addEventListener('mousedown', handleMouseDown)
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+    window.addEventListener('touchstart', handleTouchStart, { passive: true })
+    window.addEventListener('touchmove', handleTouchMove, { passive: true })
+    window.addEventListener('touchend', handleTouchEnd, { passive: true })
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
+      window.removeEventListener('mousedown', handleMouseDown)
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+      window.removeEventListener('touchstart', handleTouchStart)
+      window.removeEventListener('touchmove', handleTouchMove)
+      window.removeEventListener('touchend', handleTouchEnd)
       keys.current.clear()
     }
   }, [active])
@@ -908,22 +963,54 @@ function Walker({ active, driverName, onPositionUpdate }: { active: boolean; dri
     const dt = Math.min(delta, 0.05)
 
     const running = k.has(' ')
-    const walkSpeed = running ? 0.15 : 0.06
-    const wantForward = k.has('w')
-    const wantBack = k.has('s')
+    const maxSpeed = running ? 0.25 : 0.12
+    const accel = running ? 0.015 : 0.008
 
-    if (wantForward) speed.current = Math.min(speed.current + 0.005, walkSpeed)
-    else if (wantBack) speed.current = Math.max(speed.current - 0.003, -0.03)
-    else speed.current *= 0.85
+    // Movement direction relative to camera angle
+    // W = forward from camera's perspective, S = back, A = strafe left, D = strafe right
+    let moveX = 0
+    let moveZ = 0
+    const camAngle = cameraAngle.current
 
-    // Steering - fast and responsive turning
-    const turnSpeed = 0.07
-    if (k.has('a') || k.has('arrowleft')) rotRef.current += turnSpeed
-    if (k.has('d') || k.has('arrowright')) rotRef.current -= turnSpeed
+    if (k.has('w') || k.has('arrowup')) {
+      moveX += Math.sin(camAngle)
+      moveZ += Math.cos(camAngle)
+    }
+    if (k.has('s') || k.has('arrowdown')) {
+      moveX -= Math.sin(camAngle)
+      moveZ -= Math.cos(camAngle)
+    }
+    if (k.has('a') || k.has('arrowleft')) {
+      moveX += Math.cos(camAngle)
+      moveZ -= Math.sin(camAngle)
+    }
+    if (k.has('d') || k.has('arrowright')) {
+      moveX -= Math.cos(camAngle)
+      moveZ += Math.sin(camAngle)
+    }
 
-    let newX = posRef.current[0] + Math.sin(rotRef.current) * speed.current
-    const newY = 0.25 // ground level (feet on ground, smaller character)
-    let newZ = posRef.current[2] + Math.cos(rotRef.current) * speed.current
+    // Normalize movement direction
+    const moveMag = Math.sqrt(moveX * moveX + moveZ * moveZ)
+    const isMoving = moveMag > 0.01
+
+    if (isMoving) {
+      moveX /= moveMag
+      moveZ /= moveMag
+      actualSpeed.current = Math.min(actualSpeed.current + accel, maxSpeed)
+
+      // Player faces movement direction (smooth rotation)
+      const targetRot = Math.atan2(moveX, moveZ)
+      let rotDiff = targetRot - playerRotRef.current
+      if (rotDiff > Math.PI) rotDiff -= Math.PI * 2
+      if (rotDiff < -Math.PI) rotDiff += Math.PI * 2
+      playerRotRef.current += rotDiff * 0.15 // smooth turn
+    } else {
+      actualSpeed.current *= 0.8
+    }
+
+    let newX = posRef.current[0] + moveX * actualSpeed.current
+    const newY = 0.25
+    let newZ = posRef.current[2] + moveZ * actualSpeed.current
 
     // Boundary
     const dist = Math.sqrt(newX * newX + newZ * newZ)
@@ -931,33 +1018,35 @@ function Walker({ active, driverName, onPositionUpdate }: { active: boolean; dri
       const f = CITY_BOUNDARY_RADIUS / dist
       newX *= f
       newZ *= f
-      speed.current *= 0.5
+      actualSpeed.current *= 0.5
     }
 
     posRef.current = [newX, newY, newZ]
     walkerRef.current.position.set(newX, newY, newZ)
-    walkerRef.current.rotation.y = rotRef.current
+    walkerRef.current.rotation.y = playerRotRef.current
 
-    const walking = Math.abs(speed.current) > 0.005
+    const walking = actualSpeed.current > 0.008
     setIsWalking(walking)
     setIsRunning(walking && running)
+    setMoveSpeedState(actualSpeed.current)
 
-    // Camera follows behind - closer for small character
-    const camDist = 3
-    const camHeight = newY + 1.8
+    // GTA-style camera: orbits around player
+    const camDist = 2.5
+    const camHeight = newY + 0.8 + Math.sin(cameraPitch.current) * 2.0
+    const camHDist = camDist * Math.cos(cameraPitch.current * 0.7)
     const targetCam = new THREE.Vector3(
-      newX - Math.sin(rotRef.current) * camDist,
+      newX - Math.sin(cameraAngle.current) * camHDist,
       camHeight,
-      newZ - Math.cos(rotRef.current) * camDist
+      newZ - Math.cos(cameraAngle.current) * camHDist
     )
-    state.camera.position.lerp(targetCam, 0.08)
+    state.camera.position.lerp(targetCam, 0.1)
     state.camera.lookAt(newX, newY + 0.5, newZ)
 
     // Broadcast
     broadcastTimer.current += dt
     if (broadcastTimer.current > 0.05) {
       broadcastTimer.current = 0
-      onPositionUpdate?.(newX, newY, newZ, rotRef.current, 'walking')
+      onPositionUpdate?.(newX, newY, newZ, playerRotRef.current, 'walking')
     }
   })
 
@@ -965,7 +1054,7 @@ function Walker({ active, driverName, onPositionUpdate }: { active: boolean; dri
 
   return (
     <group ref={walkerRef} position={[0, 0.25, 8]}>
-      <Character walking={isWalking} running={isRunning} />
+      <Character walking={isWalking} running={isRunning} moveSpeed={moveSpeedState} />
       {driverName && (
         <Text
           position={[0, 1.15, 0]}
