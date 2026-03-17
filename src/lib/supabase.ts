@@ -10,6 +10,8 @@ export type Profile = {
   username: string
   display_name: string
   wallet_changes: number
+  character: string
+  character_changes: number
   created_at: string
 }
 
@@ -32,6 +34,7 @@ export type Building = {
   position_x: number
   position_z: number
   color: string
+  character: string
   verified: boolean
   message: string
   verification_deadline: string | null

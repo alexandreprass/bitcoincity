@@ -153,6 +153,14 @@ export async function POST(request: Request) {
 
     const randomColor = getRandomBuildingColor()
 
+    // Get user's character from profile
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('character')
+      .eq('id', userId)
+      .single()
+    const userCharacter = profileData?.character || 'adventurer'
+
     // Insert building
     const { error: buildingError } = await supabase
       .from('buildings')
@@ -166,6 +174,7 @@ export async function POST(request: Request) {
         position_x: pos.x,
         position_z: pos.z,
         color: randomColor,
+        character: userCharacter,
         verification_deadline: verificationDeadline,
       })
 

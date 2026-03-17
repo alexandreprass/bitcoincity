@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import { getRandomCharacterId } from '@/lib/characters'
 
 type AuthFormProps = {
   mode: 'login' | 'signup'
@@ -34,11 +35,13 @@ export default function AuthForm({ mode }: AuthFormProps) {
         if (signUpError) throw signUpError
 
         if (data.user) {
-          // Create profile
+          // Create profile with random character
+          const randomCharacter = getRandomCharacterId()
           await supabase.from('profiles').insert({
             id: data.user.id,
             username,
             display_name: username,
+            character: randomCharacter,
           })
           router.push('/verify-wallet')
         }

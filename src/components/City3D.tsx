@@ -6,6 +6,7 @@ import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import * as THREE from 'three'
 import type { Building as BuildingType } from '@/lib/supabase'
 import { satoshisToBtc } from '@/lib/bitcoin'
+import { getCharacterFile, CHARACTER_LIST } from '@/lib/characters'
 
 // Height tiers: start at 5, +2 per level
 // tier 1=5, 2=7, 3=9, 4=11, 5=13, 6=15, 7=17, 8=19
@@ -294,6 +295,21 @@ function FloorLines({ height }: { height: number }) {
 
 const LOD_DISTANCE = 30 // effects only render within this distance from camera
 
+// 3D Character model displayed in front of each building
+function CharacterModel({ characterId, scale = 0.8 }: { characterId: string; scale?: number }) {
+  const filePath = getCharacterFile(characterId)
+  const { scene } = useGLTF(filePath)
+  const clonedScene = useMemo(() => scene.clone(true), [scene])
+
+  return (
+    <primitive
+      object={clonedScene}
+      scale={scale}
+      rotation={[0, Math.PI, 0]}
+    />
+  )
+}
+
 function Building({ data, onClick }: { data: BuildingType; onClick: (b: BuildingType) => void }) {
   const isAdmin = data.is_admin || false
   const tier = isAdmin ? 8 : (data.height || 1) // Admin always max tier (gold)
@@ -416,6 +432,13 @@ function Building({ data, onClick }: { data: BuildingType; onClick: (b: Building
         </mesh>
       )}
 
+      {/* Character model in front of building */}
+      {data.character && isNear && (
+        <group position={[0, 0.16, w / 2 + 0.6]}>
+          <CharacterModel characterId={data.character} scale={0.7} />
+        </group>
+      )}
+
       {/* Name label */}
       <Text
         position={[0, height + (tier >= 6 ? 2.2 : 0.8), 0]}
@@ -438,6 +461,7 @@ function BuildingPopup({ building, onClose }: { building: BuildingType; onClose:
   const verified = building.verified || false
   const isAdmin = building.is_admin || false
   const message = building.message || ''
+  const characterName = building.character ? CHARACTER_LIST.find(c => c.id === building.character)?.name || 'Unknown' : 'None'
 
   return (
     <div
@@ -470,6 +494,10 @@ function BuildingPopup({ building, onClose }: { building: BuildingType; onClose:
         <div>
           <span className="text-gray-500">Tier</span>
           <p className="text-gray-300">{building.height} of 8</p>
+        </div>
+        <div>
+          <span className="text-gray-500">Character</span>
+          <p className="text-gray-300">{characterName}</p>
         </div>
         {message && (
           <div className="mt-3 bg-gray-800 rounded-lg p-3">
@@ -2033,3 +2061,8 @@ export default function City3D({ buildings, drivingMode = false, walkingMode = f
 
 // Preload the Satoshi GLB model
 useGLTF.preload('/models/satoshi.glb')
+
+// Preload all character models
+CHARACTER_LIST.forEach(char => {
+  useGLTF.preload(`/models/characters/${char.file}`)
+})
