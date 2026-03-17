@@ -109,25 +109,21 @@ export async function POST(request: Request) {
       .from('buildings')
       .select('*', { count: 'exact', head: true })
 
-    // Road ring radii and spoke config
-    const ROAD_RADII = [8, 15, 22, 30, 40, 52]
-    const ROAD_HALF_WIDTH = 1.2 // avoid ±1.2 around each ring road
-    const SPOKE_COUNT = 12
-    const SPOKE_HALF_WIDTH = 1.0 // avoid ±1.0 around each spoke
+    // Road ring radii and spoke config (must match City3D.tsx)
+    const ROAD_RADII = [8, 11, 15, 18, 22, 26, 30, 35, 40, 46, 52]
+    const ROAD_HALF_WIDTH = 1.2
+    const SPOKE_COUNT_VAL = 12
+    const SPOKE_HALF_WIDTH = 1.0
 
     const isOnRoad = (r: number, a: number): boolean => {
-      // Check ring roads
       for (const rr of ROAD_RADII) {
         if (Math.abs(r - rr) < ROAD_HALF_WIDTH) return true
       }
-      // Check radial spokes (only for r > 3)
       if (r > 3) {
-        for (let s = 0; s < SPOKE_COUNT; s++) {
-          const spokeAngle = (s / SPOKE_COUNT) * Math.PI * 2
-          // Distance from point to spoke line at this angle
+        for (let s = 0; s < SPOKE_COUNT_VAL; s++) {
+          const spokeAngle = (s / SPOKE_COUNT_VAL) * Math.PI * 2
           let angleDiff = Math.abs(a - spokeAngle) % (Math.PI * 2)
           if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff
-          // Arc distance = angleDiff * radius
           const arcDist = angleDiff * r
           if (arcDist < SPOKE_HALF_WIDTH) return true
         }
@@ -135,17 +131,17 @@ export async function POST(request: Request) {
       return false
     }
 
-    // Spiral placement that skips road positions
+    // Spiral placement that skips roads and mega building center
     let idx = count || 0
     let spiralIdx = 0
     let angle = 0
     let radius = 0
-    // Walk the spiral until we find `idx+1` valid positions
     let validCount = 0
     while (validCount <= idx) {
       angle = spiralIdx * 0.8
-      radius = 3 + spiralIdx * 0.6
-      if (!isOnRoad(radius, angle % (Math.PI * 2))) {
+      radius = 3.5 + spiralIdx * 0.6 // Start further out (mega building at center)
+      const normalizedAngle = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)
+      if (!isOnRoad(radius, normalizedAngle) && radius >= 3.5) {
         validCount++
       }
       if (validCount <= idx) spiralIdx++

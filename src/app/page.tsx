@@ -17,14 +17,7 @@ export default function HomePage() {
   const [userName, setUserName] = useState('')
   const [drivingMode, setDrivingMode] = useState(false)
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setIsLoggedIn(!!data.user)
-      if (data.user) {
-        setUserName(data.user.user_metadata?.username || data.user.user_metadata?.display_name || data.user.email?.split('@')[0] || 'Anon')
-      }
-    })
-
+  const fetchBuildings = () => {
     fetch('/api/buildings')
       .then((res) => res.json())
       .then((data) => {
@@ -37,6 +30,34 @@ export default function HomePage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setIsLoggedIn(!!data.user)
+      if (data.user) {
+        setUserName(data.user.user_metadata?.username || data.user.user_metadata?.display_name || data.user.email?.split('@')[0] || 'Anon')
+      }
+    })
+
+    fetchBuildings()
+
+    // Auto-reorganize every 10 minutes: sort buildings by size (biggest near center) and refresh
+    const reorganizeInterval = setInterval(() => {
+      fetch('/api/reorganize', { method: 'POST' })
+        .then(() => fetchBuildings())
+        .catch(() => {})
+    }, 10 * 60 * 1000) // 10 minutes
+
+    // Auto-refresh buildings every 5 minutes
+    const refreshInterval = setInterval(() => {
+      fetchBuildings()
+    }, 5 * 60 * 1000) // 5 minutes
+
+    return () => {
+      clearInterval(reorganizeInterval)
+      clearInterval(refreshInterval)
+    }
   }, [])
 
   return (

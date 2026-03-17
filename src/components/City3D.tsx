@@ -18,6 +18,8 @@ const FLOOR_HEIGHT = 0.55 // each visual floor height
 const WINDOW_COLS = 5 // exactly 5 windows per side
 const CITY_BOUNDARY_RADIUS = 62 // invisible wall radius
 const GUARDRAIL_RADIUS = 58 // visible guardrail radius
+const ALL_ROAD_RADII = [8, 11, 15, 18, 22, 26, 30, 35, 40, 46, 52]
+const SPOKE_COUNT = 12
 
 // Modern glass/steel color palette per tier
 function getTierStyle(tier: number) {
@@ -921,28 +923,26 @@ function Car({ active, driverName, ghostCarsRef, onNitroUpdate, onPositionUpdate
 }
 
 function Roads() {
-  const ROAD_RADII = [8, 15, 22, 30, 40, 52]
-  const SPOKE_COUNT = 12
+  const roadMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#1e1e2a' }), [])
+  const laneMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#444455' }), [])
+  const edgeMat = useMemo(() => new THREE.MeshStandardMaterial({ color: '#333340' }), [])
 
   return (
     <group>
-      {/* Circular roads - many rings covering the whole city */}
-      {ROAD_RADII.map((radius) => (
+      {/* Circular roads - all rings */}
+      {ALL_ROAD_RADII.map((radius) => (
         <group key={radius}>
-          {/* Road surface */}
           <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.005, 0]}>
             <ringGeometry args={[radius - 0.6, radius + 0.6, 48]} />
-            <meshStandardMaterial color="#1e1e2a" />
+            <primitive object={roadMat} attach="material" />
           </mesh>
-          {/* Center lane line (dashed look via thin ring) */}
           <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.012, 0]}>
             <ringGeometry args={[radius - 0.04, radius + 0.04, 48]} />
-            <meshStandardMaterial color="#444455" />
+            <primitive object={laneMat} attach="material" />
           </mesh>
-          {/* Outer edge line */}
           <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.011, 0]}>
             <ringGeometry args={[radius + 0.5, radius + 0.56, 48]} />
-            <meshStandardMaterial color="#333340" />
+            <primitive object={edgeMat} attach="material" />
           </mesh>
         </group>
       ))}
@@ -954,7 +954,7 @@ function Roads() {
             position={[Math.cos(angle) * 30, 0.006, Math.sin(angle) * 30]}
           >
             <planeGeometry args={[1.0, 60]} />
-            <meshStandardMaterial color="#1e1e2a" />
+            <primitive object={roadMat} attach="material" />
           </mesh>
         </group>
       ))}
@@ -998,11 +998,11 @@ function Streetlights() {
   )
 }
 
-// ==================== NPC FERRARI CARS ====================
+// ==================== NPC FERRARI CARS (Navigate entire city) ====================
 
 type NPCCarRoute = {
-  radius: number
-  speed: number
+  startRingIdx: number
+  linearSpeed: number
   startAngle: number
   clockwise: boolean
   color: string
@@ -1011,28 +1011,98 @@ type NPCCarRoute = {
 function NPCCar({ route, index, onClickCar, positionsRef }: { route: NPCCarRoute; index: number; onClickCar?: (idx: number) => void; positionsRef?: React.MutableRefObject<{ x: number; y: number; z: number; rot: number }[]> }) {
   const ref = useRef<THREE.Group>(null)
   const bannerRef = useRef<THREE.Mesh>(null)
+
+  // Navigation state machine
+  const navMode = useRef<'ring' | 'spoke'>('ring')
+  const currentRingIdx = useRef(route.startRingIdx)
   const angle = useRef(route.startAngle)
+  const radius = useRef(ALL_ROAD_RADII[route.startRingIdx])
+  const clockwise = useRef(route.clockwise)
+  const targetRingIdx = useRef(0)
+  const spokeAngle = useRef(0)
+  const ringTimer = useRef(4 + Math.random() * 12)
+  const targetRotY = useRef(0)
 
   useFrame((_, delta) => {
     if (!ref.current) return
     const dt = Math.min(delta, 0.05)
-    const dir = route.clockwise ? -1 : 1
-    angle.current += dir * route.speed * dt
 
-    const a = angle.current
-    const x = Math.cos(a) * route.radius
-    const z = Math.sin(a) * route.radius
+    let x: number, z: number, desiredRotY: number
+
+    if (navMode.current === 'ring') {
+      const r = radius.current
+      const angularSpeed = route.linearSpeed / r
+      const dir = clockwise.current ? -1 : 1
+      angle.current += dir * angularSpeed * dt
+
+      x = Math.cos(angle.current) * r
+      z = Math.sin(angle.current) * r
+
+      // Tangent direction
+      const tx = clockwise.current ? Math.sin(angle.current) : -Math.sin(angle.current)
+      const tz = clockwise.current ? -Math.cos(angle.current) : Math.cos(angle.current)
+      desiredRotY = Math.atan2(tx, tz)
+
+      // Check for lane change
+      ringTimer.current -= dt
+      if (ringTimer.current <= 0) {
+        const normalizedAngle = ((angle.current % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)
+        for (let s = 0; s < SPOKE_COUNT; s++) {
+          const sa = (s / SPOKE_COUNT) * Math.PI * 2
+          let diff = Math.abs(normalizedAngle - sa)
+          if (diff > Math.PI) diff = Math.PI * 2 - diff
+          if (diff < 0.12) {
+            // Pick a random different ring
+            const otherRings = ALL_ROAD_RADII.map((_, i) => i).filter(i => i !== currentRingIdx.current)
+            const pick = otherRings[Math.floor(Math.random() * otherRings.length)]
+            navMode.current = 'spoke'
+            spokeAngle.current = sa
+            angle.current = sa
+            targetRingIdx.current = pick
+            ringTimer.current = 4 + Math.random() * 12
+            break
+          }
+        }
+        if (navMode.current === 'ring') {
+          ringTimer.current = 0.3 // retry soon
+        }
+      }
+    } else {
+      // Spoke mode - drive radially to target ring
+      const targetR = ALL_ROAD_RADII[targetRingIdx.current]
+      const dir = targetR > radius.current ? 1 : -1
+      radius.current += dir * route.linearSpeed * dt
+
+      x = Math.cos(spokeAngle.current) * radius.current
+      z = Math.sin(spokeAngle.current) * radius.current
+
+      // Face direction of travel along spoke
+      const dx = Math.cos(spokeAngle.current) * dir
+      const dz = Math.sin(spokeAngle.current) * dir
+      desiredRotY = Math.atan2(dx, dz)
+
+      // Check if reached target ring
+      if (Math.abs(radius.current - targetR) < 0.4) {
+        radius.current = targetR
+        currentRingIdx.current = targetRingIdx.current
+        navMode.current = 'ring'
+        clockwise.current = Math.random() > 0.5
+        angle.current = spokeAngle.current
+      }
+    }
+
     ref.current.position.set(x, 0.15, z)
 
-    // Face tangent direction
-    const tx = route.clockwise ? Math.sin(a) : -Math.sin(a)
-    const tz = route.clockwise ? -Math.cos(a) : Math.cos(a)
-    const rotY = Math.atan2(tx, tz)
-    ref.current.rotation.y = rotY
+    // Smooth rotation with wrapping
+    targetRotY.current = desiredRotY
+    let rotDiff = targetRotY.current - ref.current.rotation.y
+    if (rotDiff > Math.PI) rotDiff -= Math.PI * 2
+    if (rotDiff < -Math.PI) rotDiff += Math.PI * 2
+    ref.current.rotation.y += rotDiff * 0.08
 
     // Store position for camera follow
     if (positionsRef?.current) {
-      positionsRef.current[index] = { x, y: 0.15, z, rot: rotY }
+      positionsRef.current[index] = { x, y: 0.15, z, rot: ref.current.rotation.y }
     }
 
     // Rotate banner
@@ -1098,29 +1168,29 @@ function NPCCar({ route, index, onClickCar, positionsRef }: { route: NPCCarRoute
         <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={2} />
       </mesh>
 
-      {/* Rotating Bitcoin City Banner (cylinder on top) */}
-      <group position={[0, 0.5, 0]}>
+      {/* Rotating Bitcoin City Banner (2x bigger) */}
+      <group position={[0, 0.55, 0]}>
         {/* Pole */}
-        <mesh position={[0, -0.12, 0]}>
-          <cylinderGeometry args={[0.015, 0.015, 0.2]} />
+        <mesh position={[0, -0.15, 0]}>
+          <cylinderGeometry args={[0.02, 0.02, 0.3]} />
           <meshStandardMaterial color="#666" metalness={0.8} />
         </mesh>
-        {/* Rotating banner cylinder */}
-        <mesh ref={bannerRef} position={[0, 0.05, 0]}>
-          <cylinderGeometry args={[0.18, 0.18, 0.22, 12, 1, true]} />
+        {/* Rotating banner cylinder - DOUBLED size */}
+        <mesh ref={bannerRef} position={[0, 0.1, 0]}>
+          <cylinderGeometry args={[0.36, 0.36, 0.44, 16, 1, true]} />
           <meshStandardMaterial
             color="#f7931a"
             emissive="#f7931a"
-            emissiveIntensity={0.4}
+            emissiveIntensity={0.5}
             transparent
-            opacity={0.65}
+            opacity={0.7}
             side={THREE.DoubleSide}
           />
         </mesh>
-        {/* BTC logo dot on banner */}
-        <mesh position={[0, 0.05, 0.19]}>
-          <sphereGeometry args={[0.04]} />
-          <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.5} />
+        {/* BTC logo dot on banner - bigger */}
+        <mesh position={[0, 0.1, 0.37]}>
+          <sphereGeometry args={[0.07]} />
+          <meshStandardMaterial color="#ffffff" emissive="#ffffff" emissiveIntensity={0.6} />
         </mesh>
       </group>
     </group>
@@ -1129,29 +1199,17 @@ function NPCCar({ route, index, onClickCar, positionsRef }: { route: NPCCarRoute
 
 function NPCCars({ onClickCar, positionsRef }: { onClickCar?: (idx: number) => void; positionsRef?: React.MutableRefObject<{ x: number; y: number; z: number; rot: number }[]> }) {
   const routes = useMemo<NPCCarRoute[]>(() => {
-    const ferrariColors = ['#FF2800', '#FFD700', '#000000', '#FFFFFF', '#1E90FF', '#FF4500']
+    const ferrariColors = ['#FF2800', '#FFD700', '#000000', '#FFFFFF', '#1E90FF', '#FF4500', '#8B0000', '#00FF7F', '#FF1493', '#00CED1']
     const arr: NPCCarRoute[] = []
-    // Cars drive exactly on road ring radii: [8, 15, 22, 30, 40, 52]
-    const rings = [
-      { radius: 8, count: 2, speed: 0.25 },
-      { radius: 15, count: 2, speed: 0.15 },
-      { radius: 22, count: 2, speed: 0.12 },
-      { radius: 30, count: 2, speed: 0.09 },
-      { radius: 40, count: 2, speed: 0.07 },
-      { radius: 52, count: 2, speed: 0.05 },
-    ]
-    let idx = 0
-    for (const ring of rings) {
-      for (let i = 0; i < ring.count; i++) {
-        arr.push({
-          radius: ring.radius,
-          speed: ring.speed + (Math.random() * 0.02 - 0.01),
-          startAngle: (i / ring.count) * Math.PI * 2 + Math.random() * 0.3,
-          clockwise: i % 2 === 0,
-          color: ferrariColors[idx % ferrariColors.length],
-        })
-        idx++
-      }
+    // 10 cars, each starts on a different ring, navigates the whole city
+    for (let i = 0; i < 10; i++) {
+      arr.push({
+        startRingIdx: i % ALL_ROAD_RADII.length,
+        linearSpeed: 3 + Math.random() * 4, // 3-7 units/sec
+        startAngle: Math.random() * Math.PI * 2,
+        clockwise: Math.random() > 0.5,
+        color: ferrariColors[i % ferrariColors.length],
+      })
     }
     return arr
   }, [])
@@ -1174,7 +1232,6 @@ function NPCCameraFollower({ positionsRef, followIndex }: { positionsRef: React.
     const pos = positionsRef.current[followIndex]
     if (!pos) return
 
-    // Camera behind and above the NPC car
     const camDist = 5
     const camHeight = 2.5
     const behindX = pos.x - Math.sin(pos.rot) * camDist
@@ -1190,24 +1247,169 @@ function NPCCameraFollower({ positionsRef, followIndex }: { positionsRef: React.
 
 // WarmCityLights removed for performance - ambient/directional lights provide enough warmth
 
-function CitySign({ count }: { count: number }) {
+// ==================== MEGA BUILDING (City HQ) ====================
+
+function NeonSign({ text, position, rotation }: { text: string; position: [number, number, number]; rotation?: [number, number, number] }) {
+  const glowRef = useRef<any>(null)
+  const textRef = useRef<any>(null)
+
+  useFrame((state) => {
+    const t = state.clock.elapsedTime
+    // Neon flicker: mostly steady with occasional subtle dips
+    const base = 0.85 + Math.sin(t * 2.3) * 0.1
+    const flicker = Math.random() > 0.97 ? 0.5 + Math.random() * 0.3 : 1.0
+    const intensity = base * flicker
+    if (glowRef.current) {
+      glowRef.current.fillOpacity = intensity * 0.35
+    }
+  })
+
   return (
-    <group position={[0, 4, -6]}>
+    <group position={position} rotation={rotation || [0, 0, 0]}>
+      {/* Dark sign board */}
+      <mesh position={[0, 0, -0.08]}>
+        <boxGeometry args={[6.5, 1.6, 0.12]} />
+        <meshStandardMaterial color="#0a0a0a" metalness={0.3} roughness={0.8} />
+      </mesh>
+      {/* Metal frame */}
+      <mesh position={[0, 0, -0.06]}>
+        <boxGeometry args={[6.8, 1.8, 0.04]} />
+        <meshStandardMaterial color="#333" metalness={0.7} roughness={0.3} />
+      </mesh>
+      {/* Main neon text */}
       <Text
-        fontSize={1.5}
-        color="#f7931a"
+        ref={textRef}
+        fontSize={0.85}
+        color="#ff6600"
         anchorX="center"
         anchorY="middle"
-        outlineWidth={0.06}
-        outlineColor="black"
-        font={undefined}
+        outlineWidth={0.03}
+        outlineColor="#ff3300"
       >
-        BITCOIN CITY
+        {text}
       </Text>
+      {/* Glow text behind (slightly larger, transparent) */}
       <Text
-        position={[0, -1.5, 0]}
-        fontSize={0.45}
-        color="#666"
+        ref={glowRef}
+        fontSize={0.9}
+        color="#ff4400"
+        anchorX="center"
+        anchorY="middle"
+        position={[0, 0, -0.02]}
+        fillOpacity={0.35}
+      >
+        {text}
+      </Text>
+    </group>
+  )
+}
+
+function MegaBuilding({ count }: { count: number }) {
+  const MEGA_HEIGHT = 28
+  const MEGA_WIDTH = 3.8
+
+  return (
+    <group position={[0, 0, 0]}>
+      {/* Grand foundation */}
+      <mesh position={[0, 0.15, 0]} receiveShadow>
+        <boxGeometry args={[MEGA_WIDTH + 1, 0.3, MEGA_WIDTH + 1]} />
+        <meshStandardMaterial color="#111" metalness={0.5} />
+      </mesh>
+      {/* Steps */}
+      <mesh position={[0, 0.05, 0]} receiveShadow>
+        <boxGeometry args={[MEGA_WIDTH + 1.8, 0.1, MEGA_WIDTH + 1.8]} />
+        <meshStandardMaterial color="#1a1a1a" />
+      </mesh>
+
+      {/* Main tower body */}
+      <mesh position={[0, MEGA_HEIGHT / 2 + 0.3, 0]} castShadow receiveShadow>
+        <boxGeometry args={[MEGA_WIDTH, MEGA_HEIGHT, MEGA_WIDTH]} />
+        <meshStandardMaterial color="#0d1117" metalness={0.7} roughness={0.3} />
+      </mesh>
+
+      {/* Gold accent stripes - 4 sides */}
+      {[0, Math.PI / 2, Math.PI, -Math.PI / 2].map((rot, i) => (
+        <mesh key={`stripe-${i}`} position={[
+          Math.sin(rot) * (MEGA_WIDTH / 2 + 0.01),
+          MEGA_HEIGHT / 2 + 0.3,
+          Math.cos(rot) * (MEGA_WIDTH / 2 + 0.01)
+        ]} rotation={[0, rot, 0]}>
+          <planeGeometry args={[0.12, MEGA_HEIGHT]} />
+          <meshStandardMaterial color="#f7931a" emissive="#f7931a" emissiveIntensity={0.4} />
+        </mesh>
+      ))}
+
+      {/* Windows for mega building - using shared geometry */}
+      {useMemo(() => {
+        const windows: JSX.Element[] = []
+        const step = 2
+        for (let floor = 1; floor < MEGA_HEIGHT / FLOOR_HEIGHT; floor += step) {
+          const y = floor * FLOOR_HEIGHT + 0.3
+          for (let c = 0; c < 7; c++) {
+            const off = (c + 1) * (MEGA_WIDTH / 8) - MEGA_WIDTH / 2
+            // Front and back
+            windows.push(
+              <mesh key={`fw-${floor}-${c}`} position={[off, y, MEGA_WIDTH / 2 + 0.01]}>
+                <planeGeometry args={[0.28, 0.38]} />
+                <meshStandardMaterial color="#1a3a5c" emissive="#2255aa" emissiveIntensity={0.3} transparent opacity={0.9} />
+              </mesh>
+            )
+            windows.push(
+              <mesh key={`bw-${floor}-${c}`} position={[off, y, -(MEGA_WIDTH / 2 + 0.01)]} rotation={[0, Math.PI, 0]}>
+                <planeGeometry args={[0.28, 0.38]} />
+                <meshStandardMaterial color="#1a3a5c" emissive="#2255aa" emissiveIntensity={0.3} transparent opacity={0.9} />
+              </mesh>
+            )
+          }
+        }
+        return windows
+      }, [])}
+
+      {/* Roof */}
+      <mesh position={[0, MEGA_HEIGHT + 0.5, 0]}>
+        <boxGeometry args={[MEGA_WIDTH + 0.2, 0.2, MEGA_WIDTH + 0.2]} />
+        <meshStandardMaterial color="#111" metalness={0.6} />
+      </mesh>
+
+      {/* Rooftop structure */}
+      <mesh position={[0, MEGA_HEIGHT + 1.3, 0]}>
+        <boxGeometry args={[2, 1.4, 2]} />
+        <meshStandardMaterial color="#0a0a0a" metalness={0.5} />
+      </mesh>
+
+      {/* Antenna */}
+      <mesh position={[0, MEGA_HEIGHT + 3.5, 0]}>
+        <cylinderGeometry args={[0.04, 0.04, 3]} />
+        <meshStandardMaterial color="#888" metalness={0.8} />
+      </mesh>
+      <mesh position={[0, MEGA_HEIGHT + 5, 0]}>
+        <sphereGeometry args={[0.1]} />
+        <meshStandardMaterial color="#ff3333" emissive="#ff0000" emissiveIntensity={1} />
+      </mesh>
+
+      {/* BTC logo on building (emissive orange circle) */}
+      {[0, Math.PI / 2, Math.PI, -Math.PI / 2].map((rot, i) => (
+        <mesh key={`btc-${i}`} position={[
+          Math.sin(rot) * (MEGA_WIDTH / 2 + 0.02),
+          MEGA_HEIGHT * 0.75 + 0.3,
+          Math.cos(rot) * (MEGA_WIDTH / 2 + 0.02)
+        ]} rotation={[0, rot, 0]}>
+          <circleGeometry args={[0.8, 32]} />
+          <meshStandardMaterial color="#f7931a" emissive="#f7931a" emissiveIntensity={0.6} />
+        </mesh>
+      ))}
+
+      {/* NEON SIGNS on top - 4 sides */}
+      <NeonSign text="BITCOIN CITY" position={[0, MEGA_HEIGHT + 2, MEGA_WIDTH / 2 + 0.2]} />
+      <NeonSign text="BITCOIN CITY" position={[0, MEGA_HEIGHT + 2, -(MEGA_WIDTH / 2 + 0.2)]} rotation={[0, Math.PI, 0]} />
+      <NeonSign text="BITCOIN CITY" position={[MEGA_WIDTH / 2 + 0.2, MEGA_HEIGHT + 2, 0]} rotation={[0, Math.PI / 2, 0]} />
+      <NeonSign text="BITCOIN CITY" position={[-(MEGA_WIDTH / 2 + 0.2), MEGA_HEIGHT + 2, 0]} rotation={[0, -Math.PI / 2, 0]} />
+
+      {/* Citizen count under the neon sign */}
+      <Text
+        position={[0, MEGA_HEIGHT + 0.9, MEGA_WIDTH / 2 + 0.15]}
+        fontSize={0.3}
+        color="#888"
         anchorX="center"
         anchorY="middle"
       >
@@ -1418,7 +1620,7 @@ export default function City3D({ buildings, drivingMode = false, driverName = ''
         <pointLight position={[0, 30, 0]} intensity={0.8} color="#f7931a" />
         <hemisphereLight args={['#5a4020', '#1a1210', 1.0]} />
 
-        <CitySign count={buildings.length} />
+        <MegaBuilding count={buildings.length} />
         <Ground />
         <Roads />
         <Streetlights />
