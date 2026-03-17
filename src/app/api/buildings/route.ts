@@ -19,7 +19,8 @@ export async function GET() {
 
   const { data: buildings, error } = await supabase
     .from('buildings')
-    .select('id, user_id, username, display_name, btc_address, balance_satoshis, height, position_x, position_z, color, verified, message, verification_deadline, created_at')
+    .select('id, user_id, username, display_name, btc_address, balance_satoshis, height, position_x, position_z, color, verified, message, verification_deadline, is_admin, created_at')
+    .order('is_admin', { ascending: false })
     .order('balance_satoshis', { ascending: false })
 
   if (error) {

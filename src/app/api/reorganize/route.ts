@@ -64,10 +64,11 @@ export async function POST() {
   const supabase = createServerSupabase(url, serviceKey)
 
   try {
-    // Fetch all buildings sorted by balance (biggest first = closest to center)
+    // Fetch all buildings sorted by admin first, then balance (biggest first = closest to center)
     const { data: buildings, error } = await supabase
       .from('buildings')
-      .select('id, balance_satoshis')
+      .select('id, balance_satoshis, is_admin')
+      .order('is_admin', { ascending: false })
       .order('balance_satoshis', { ascending: false })
 
     if (error) {

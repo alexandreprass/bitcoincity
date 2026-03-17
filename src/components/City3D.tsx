@@ -102,62 +102,86 @@ function GoldenSparkles({ height }: { height: number }) {
 }
 
 function VerifiedAura({ height }: { height: number }) {
-  const ref = useRef<THREE.Mesh>(null)
+  const outerRef = useRef<THREE.Mesh>(null)
   const innerRef = useRef<THREE.Mesh>(null)
+  const glowRef = useRef<THREE.Mesh>(null)
   useFrame((state) => {
-    if (ref.current) {
-      ref.current.rotation.y += 0.012
-      const pulse = 1 + Math.sin(state.clock.elapsedTime * 2) * 0.06
-      ref.current.scale.set(pulse, 1, pulse)
+    const t = state.clock.elapsedTime
+    if (outerRef.current) {
+      outerRef.current.rotation.y += 0.006
+      const pulse = 1 + Math.sin(t * 1.5) * 0.08
+      outerRef.current.scale.set(pulse, 1, pulse)
     }
     if (innerRef.current) {
-      innerRef.current.rotation.y -= 0.008
-      const pulse2 = 1 + Math.cos(state.clock.elapsedTime * 3) * 0.04
+      innerRef.current.rotation.y -= 0.004
+      const pulse2 = 1 + Math.cos(t * 2) * 0.05
       innerRef.current.scale.set(pulse2, 1, pulse2)
+    }
+    if (glowRef.current) {
+      const breathe = 0.2 + Math.sin(t * 1.2) * 0.08
+      ;(glowRef.current.material as THREE.MeshStandardMaterial).opacity = breathe
     }
   })
   return (
     <>
-      {/* Outer golden aura */}
-      <mesh ref={ref} position={[0, height / 2, 0]}>
-        <cylinderGeometry args={[BUILDING_WIDTH * 0.95, BUILDING_WIDTH * 0.95, height + 2, 8, 1, true]} />
+      {/* Outer soft golden aura - high segment count for smooth circle */}
+      <mesh ref={outerRef} position={[0, height / 2, 0]}>
+        <cylinderGeometry args={[BUILDING_WIDTH * 1.1, BUILDING_WIDTH * 1.0, height + 3, 32, 1, true]} />
         <meshStandardMaterial
           color="#FFD700"
           transparent
-          opacity={0.12}
+          opacity={0.08}
           side={THREE.DoubleSide}
           emissive="#FFD700"
-          emissiveIntensity={0.8}
+          emissiveIntensity={0.6}
+          depthWrite={false}
         />
       </mesh>
-      {/* Inner brighter glow */}
+      {/* Inner brighter glow - smooth cylinder */}
       <mesh ref={innerRef} position={[0, height / 2, 0]}>
-        <cylinderGeometry args={[BUILDING_WIDTH * 0.75, BUILDING_WIDTH * 0.75, height + 1, 6, 1, true]} />
+        <cylinderGeometry args={[BUILDING_WIDTH * 0.85, BUILDING_WIDTH * 0.8, height + 1.5, 32, 1, true]} />
         <meshStandardMaterial
           color="#FFA500"
           transparent
-          opacity={0.08}
+          opacity={0.06}
           side={THREE.DoubleSide}
           emissive="#FFA500"
+          emissiveIntensity={0.8}
+          depthWrite={false}
+        />
+      </mesh>
+      {/* Soft breathing glow sphere at mid height */}
+      <mesh ref={glowRef} position={[0, height / 2, 0]}>
+        <sphereGeometry args={[BUILDING_WIDTH * 1.2, 24, 24]} />
+        <meshStandardMaterial
+          color="#FFD700"
+          transparent
+          opacity={0.15}
+          emissive="#FFD700"
           emissiveIntensity={1.0}
+          depthWrite={false}
+          side={THREE.DoubleSide}
         />
       </mesh>
       {/* Golden point light at top */}
-      <pointLight position={[0, height + 1, 0]} intensity={1.5} distance={8} color="#FFD700" />
+      <pointLight position={[0, height + 1, 0]} intensity={2.0} distance={10} color="#FFD700" />
+      {/* Golden point light at mid */}
+      <pointLight position={[0, height / 2, 0]} intensity={1.0} distance={6} color="#FFAA00" />
       {/* Golden point light at base */}
       <pointLight position={[0, 0.5, 0]} intensity={0.8} distance={5} color="#FFA500" />
       {/* Rising golden sparkle particles */}
       <GoldenSparkles height={height} />
-      {/* Ground glow ring */}
+      {/* Ground glow ring - smooth */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
-        <ringGeometry args={[BUILDING_WIDTH * 0.5, BUILDING_WIDTH * 1.2, 32]} />
+        <ringGeometry args={[BUILDING_WIDTH * 0.3, BUILDING_WIDTH * 1.5, 48]} />
         <meshStandardMaterial
           color="#FFD700"
           transparent
-          opacity={0.25}
+          opacity={0.2}
           emissive="#FFD700"
-          emissiveIntensity={1.2}
+          emissiveIntensity={1.0}
           side={THREE.DoubleSide}
+          depthWrite={false}
         />
       </mesh>
     </>
@@ -167,11 +191,13 @@ function VerifiedAura({ height }: { height: number }) {
 function ModernWindows({ height, tier }: { height: number; tier: number }) {
   const style = getTierStyle(tier)
   const totalFloors = Math.floor(height / FLOOR_HEIGHT)
-  const displayFloors = Math.min(totalFloors, 30)
+  const maxWindows = 40 // max window rows to render for performance
+  const displayFloors = Math.min(totalFloors, 50)
   const w = BUILDING_WIDTH
   const windowW = 0.22
   const windowH = 0.32
   const spacing = w / (WINDOW_COLS + 1)
+  const offset = 0.02 // offset from building surface to avoid z-fighting
 
   const windowGeom = useMemo(() => new THREE.PlaneGeometry(windowW, windowH), [])
   const windowMat = useMemo(
@@ -182,25 +208,30 @@ function ModernWindows({ height, tier }: { height: number; tier: number }) {
         emissiveIntensity: 0.5,
         transparent: true,
         opacity: 0.9,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
       }),
     [style]
   )
 
   const instances = useMemo(() => {
     const arr: { pos: [number, number, number]; rot: [number, number, number] }[] = []
-    const step = Math.max(1, Math.floor(displayFloors / 20))
-    for (let f = 1; f < displayFloors; f += step) {
+    // Evenly distribute window rows across building height
+    const step = displayFloors > maxWindows ? displayFloors / maxWindows : 1
+    for (let i = 0; i < Math.min(displayFloors - 1, maxWindows); i++) {
+      const f = Math.floor(1 + i * step)
       const y = f * FLOOR_HEIGHT + 0.15
       for (let c = 0; c < WINDOW_COLS; c++) {
         const off = spacing * (c + 1) - w / 2
-        arr.push({ pos: [off, y, w / 2 + 0.01], rot: [0, 0, 0] })
-        arr.push({ pos: [off, y, -(w / 2 + 0.01)], rot: [0, Math.PI, 0] })
-        arr.push({ pos: [-(w / 2 + 0.01), y, off], rot: [0, -Math.PI / 2, 0] })
-        arr.push({ pos: [w / 2 + 0.01, y, off], rot: [0, Math.PI / 2, 0] })
+        arr.push({ pos: [off, y, w / 2 + offset], rot: [0, 0, 0] })
+        arr.push({ pos: [off, y, -(w / 2 + offset)], rot: [0, Math.PI, 0] })
+        arr.push({ pos: [-(w / 2 + offset), y, off], rot: [0, -Math.PI / 2, 0] })
+        arr.push({ pos: [w / 2 + offset, y, off], rot: [0, Math.PI / 2, 0] })
       }
     }
     return arr
-  }, [displayFloors, spacing, w])
+  }, [displayFloors, spacing, w, offset])
 
   return (
     <>
@@ -236,13 +267,14 @@ function FloorLines({ height }: { height: number }) {
 }
 
 function Building({ data, onClick }: { data: BuildingType; onClick: (b: BuildingType) => void }) {
-  const tier = data.height || 1
+  const isAdmin = data.is_admin || false
+  const tier = isAdmin ? 8 : (data.height || 1) // Admin always max tier (gold)
   const height = tierToHeight(tier)
   const x = data.position_x || 0
   const z = data.position_z || 0
-  const verified = data.verified || false
+  const verified = data.verified || isAdmin // Admin always shows as verified
   const style = getTierStyle(tier)
-  const bodyColor = data.color || style.body // Use user's chosen color for building body
+  const bodyColor = isAdmin ? '#8B7500' : (data.color || style.body) // Admin = gold body
   const [hovered, setHovered] = useState(false)
   const w = BUILDING_WIDTH
 
@@ -353,7 +385,7 @@ function Building({ data, onClick }: { data: BuildingType; onClick: (b: Building
         outlineWidth={0.04}
         outlineColor="#000000"
       >
-        {verified ? '\u2713 ' : ''}{data.display_name || data.username || 'Anon'}
+        {isAdmin ? '\u2605 ' : verified ? '\u2713 ' : ''}{data.display_name || data.username || 'Anon'}
       </Text>
     </group>
   )
@@ -363,6 +395,7 @@ function BuildingPopup({ building, onClose }: { building: BuildingType; onClose:
   const btc = satoshisToBtc(building.balance_satoshis)
   const btcLabel = btc >= 0.001 ? `${btc.toFixed(8)} BTC` : `${building.balance_satoshis.toLocaleString()} sats`
   const verified = building.verified || false
+  const isAdmin = building.is_admin || false
   const message = building.message || ''
 
   return (
@@ -373,6 +406,11 @@ function BuildingPopup({ building, onClose }: { building: BuildingType; onClose:
       <button onClick={onClose} className="absolute top-3 right-3 text-gray-500 hover:text-white text-xl">&times;</button>
       <div className="flex items-center gap-2 mb-3">
         <h3 className="text-lg font-bold text-white">{building.display_name || building.username}</h3>
+        {isAdmin && (
+          <span className="bg-orange-500/20 text-orange-400 text-xs px-2 py-0.5 rounded-full border border-orange-500/50 font-semibold">
+            ADMIN
+          </span>
+        )}
         {verified && (
           <span className="bg-yellow-500/20 text-yellow-400 text-xs px-2 py-0.5 rounded-full border border-yellow-500/50 font-semibold">
             VERIFIED

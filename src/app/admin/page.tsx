@@ -73,6 +73,42 @@ export default function AdminPage() {
     }
   }
 
+  const setAdminBuilding = async (userId: string) => {
+    if (!confirm('Set this building as the ADMIN building? It will become the largest golden building in the city.')) return
+
+    const res = await fetch('/api/admin', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${password}`,
+      },
+      body: JSON.stringify({ userId }),
+    })
+
+    if (res.ok) {
+      setBuildings((prev) =>
+        prev.map((b) => ({ ...b, is_admin: b.user_id === userId }))
+      )
+    }
+  }
+
+  const removeAdminBuilding = async () => {
+    const res = await fetch('/api/admin', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${password}`,
+      },
+      body: JSON.stringify({ userId: null }),
+    })
+
+    if (res.ok) {
+      setBuildings((prev) =>
+        prev.map((b) => ({ ...b, is_admin: false }))
+      )
+    }
+  }
+
   const deleteUser = async (userId: string) => {
     if (!confirm('Are you sure you want to delete ALL data for this user? This cannot be undone.')) return
 
@@ -240,6 +276,7 @@ export default function AdminPage() {
                 <th className="py-3 px-2">Balance</th>
                 <th className="py-3 px-2">Tier</th>
                 <th className="py-3 px-2">Verified</th>
+                <th className="py-3 px-2">Admin</th>
                 <th className="py-3 px-2">Actions</th>
               </tr>
             </thead>
@@ -270,6 +307,13 @@ export default function AdminPage() {
                     )}
                   </td>
                   <td className="py-3 px-2">
+                    {b.is_admin ? (
+                      <span className="text-orange-400 font-bold">ADMIN</span>
+                    ) : (
+                      <span className="text-gray-600">-</span>
+                    )}
+                  </td>
+                  <td className="py-3 px-2">
                     <div className="flex gap-2">
                       <button
                         onClick={() => toggleVerified(b.user_id, b.verified)}
@@ -281,6 +325,21 @@ export default function AdminPage() {
                       >
                         {b.verified ? 'Remove Verified' : 'Give Verified'}
                       </button>
+                      {b.is_admin ? (
+                        <button
+                          onClick={() => removeAdminBuilding()}
+                          className="text-xs px-3 py-1 rounded bg-orange-900/50 text-orange-400 hover:bg-orange-900"
+                        >
+                          Remove Admin
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setAdminBuilding(b.user_id)}
+                          className="text-xs px-3 py-1 rounded bg-orange-900/50 text-orange-300 hover:bg-orange-900"
+                        >
+                          Set Admin
+                        </button>
+                      )}
                       <button
                         onClick={() => deleteUser(b.user_id)}
                         className="text-xs px-3 py-1 rounded bg-red-900/50 text-red-400 hover:bg-red-900"

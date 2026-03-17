@@ -72,6 +72,54 @@ export async function POST(request: Request) {
   return NextResponse.json({ success: true })
 }
 
+// PATCH - set admin building
+export async function PATCH(request: Request) {
+  if (!checkAdmin(request)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !serviceKey) {
+    return NextResponse.json({ error: 'Server not configured' }, { status: 500 })
+  }
+
+  const supabase = createServerSupabase(url, serviceKey)
+
+  let body: any
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid request' }, { status: 400 })
+  }
+
+  const { userId } = body
+
+  // First, remove admin from all buildings
+  const { error: resetError } = await supabase
+    .from('buildings')
+    .update({ is_admin: false })
+    .eq('is_admin', true)
+
+  if (resetError) {
+    return NextResponse.json({ error: resetError.message }, { status: 500 })
+  }
+
+  // Then set the selected building as admin
+  if (userId) {
+    const { error: setError } = await supabase
+      .from('buildings')
+      .update({ is_admin: true })
+      .eq('user_id', userId)
+
+    if (setError) {
+      return NextResponse.json({ error: setError.message }, { status: 500 })
+    }
+  }
+
+  return NextResponse.json({ success: true })
+}
+
 // DELETE - delete all data for a user
 export async function DELETE(request: Request) {
   if (!checkAdmin(request)) {

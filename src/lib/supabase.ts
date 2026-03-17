@@ -35,6 +35,7 @@ export type Building = {
   verified: boolean
   message: string
   verification_deadline: string | null
+  is_admin: boolean
   created_at: string
 }
 
