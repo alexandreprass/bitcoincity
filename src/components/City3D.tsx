@@ -1,7 +1,7 @@
 'use client'
 
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { OrbitControls, Text, useGLTF } from '@react-three/drei'
+import { OrbitControls, Text, useGLTF, useAnimations } from '@react-three/drei'
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import * as THREE from 'three'
 import type { Building as BuildingType } from '@/lib/supabase'
@@ -699,12 +699,13 @@ function TieredCarBody({ tier }: { tier: number }) {
 
 function Character({ walking, running, moveSpeed = 0 }: { walking: boolean; running: boolean; moveSpeed?: number }) {
   const groupRef = useRef<THREE.Group>(null)
-  const { scene: glbScene } = useGLTF('/models/satoshi.glb')
+  const { scene: glbScene, animations } = useGLTF('/models/satoshi.glb')
+  const { actions } = useAnimations(animations, groupRef)
+  const currentAction = useRef<string>('')
 
-  // Clone the model so each instance is independent
+  // Clone model for independent instances
   const model = useMemo(() => {
     const clone = glbScene.clone(true)
-    // Ensure all materials render properly
     clone.traverse((child: THREE.Object3D) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh
@@ -715,22 +716,33 @@ function Character({ walking, running, moveSpeed = 0 }: { walking: boolean; runn
     return clone
   }, [glbScene])
 
-  useFrame((state) => {
-    if (!groupRef.current) return
-    if (!walking && !running) {
-      // Smoothly return to idle
-      groupRef.current.position.y *= 0.85
-      return
+  // Switch animations based on state
+  useEffect(() => {
+    let targetAnim = 'CharacterArmature|Idle'
+    if (running) targetAnim = 'CharacterArmature|Run'
+    else if (walking) targetAnim = 'CharacterArmature|Walk'
+
+    if (currentAction.current === targetAnim) return
+    currentAction.current = targetAnim
+
+    // Fade out all, fade in target
+    Object.values(actions).forEach(action => {
+      if (action) action.fadeOut(0.3)
+    })
+    const next = actions[targetAnim]
+    if (next) {
+      next.reset().fadeIn(0.3).play()
     }
-    const animSpeed = Math.max(3, Math.abs(moveSpeed) * 60)
-    const t = state.clock.elapsedTime * animSpeed
-    // Walking bob
-    const bob = Math.abs(Math.sin(t * 2)) * Math.min(0.02, Math.abs(moveSpeed) * 0.15)
-    groupRef.current.position.y += (bob - groupRef.current.position.y) * 0.3
-    // Subtle body sway while walking
-    const sway = Math.sin(t * 0.7) * 0.015 * Math.min(1, Math.abs(moveSpeed) * 8)
-    groupRef.current.rotation.z += (sway - groupRef.current.rotation.z) * 0.1
-  })
+  }, [walking, running, actions])
+
+  // Start idle animation on mount
+  useEffect(() => {
+    const idle = actions['CharacterArmature|Idle']
+    if (idle) {
+      idle.reset().play()
+      currentAction.current = 'CharacterArmature|Idle'
+    }
+  }, [actions])
 
   return (
     <group ref={groupRef} scale={[0.42, 0.42, 0.42]}>
