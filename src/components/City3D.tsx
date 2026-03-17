@@ -40,7 +40,7 @@ function getTierStyle(tier: number) {
 
 function GoldenSparkles({ height }: { height: number }) {
   const particlesRef = useRef<THREE.Points>(null)
-  const count = 40
+  const count = 15 // reduced from 40 for performance
 
   const [positions, velocities] = useMemo(() => {
     const pos = new Float32Array(count * 3)
@@ -60,14 +60,12 @@ function GoldenSparkles({ height }: { height: number }) {
 
   useFrame(() => {
     if (!particlesRef.current) return
-    const geo = particlesRef.current.geometry
-    const posAttr = geo.attributes.position as THREE.BufferAttribute
+    const posAttr = particlesRef.current.geometry.attributes.position as THREE.BufferAttribute
     const arr = posAttr.array as Float32Array
     for (let i = 0; i < count; i++) {
       arr[i * 3] += velocities[i * 3]
       arr[i * 3 + 1] += velocities[i * 3 + 1]
       arr[i * 3 + 2] += velocities[i * 3 + 2]
-      // Reset particle when it goes above building
       if (arr[i * 3 + 1] > height + 2) {
         const angle = Math.random() * Math.PI * 2
         const r = BUILDING_WIDTH * 0.5 + Math.random() * 0.6
@@ -91,7 +89,7 @@ function GoldenSparkles({ height }: { height: number }) {
       </bufferGeometry>
       <pointsMaterial
         color="#FFD700"
-        size={0.12}
+        size={0.15}
         transparent
         opacity={0.9}
         blending={THREE.AdditiveBlending}
@@ -103,77 +101,35 @@ function GoldenSparkles({ height }: { height: number }) {
 
 function VerifiedAura({ height }: { height: number }) {
   const outerRef = useRef<THREE.Mesh>(null)
-  const innerRef = useRef<THREE.Mesh>(null)
-  const glowRef = useRef<THREE.Mesh>(null)
   useFrame((state) => {
-    const t = state.clock.elapsedTime
     if (outerRef.current) {
-      outerRef.current.rotation.y += 0.006
-      const pulse = 1 + Math.sin(t * 1.5) * 0.08
+      outerRef.current.rotation.y += 0.005
+      const pulse = 1 + Math.sin(state.clock.elapsedTime * 1.5) * 0.06
       outerRef.current.scale.set(pulse, 1, pulse)
-    }
-    if (innerRef.current) {
-      innerRef.current.rotation.y -= 0.004
-      const pulse2 = 1 + Math.cos(t * 2) * 0.05
-      innerRef.current.scale.set(pulse2, 1, pulse2)
-    }
-    if (glowRef.current) {
-      const breathe = 0.2 + Math.sin(t * 1.2) * 0.08
-      ;(glowRef.current.material as THREE.MeshStandardMaterial).opacity = breathe
     }
   })
   return (
     <>
-      {/* Outer soft golden aura - high segment count for smooth circle */}
+      {/* Single smooth golden aura cylinder (was 3 meshes + sphere, now 1) */}
       <mesh ref={outerRef} position={[0, height / 2, 0]}>
-        <cylinderGeometry args={[BUILDING_WIDTH * 1.1, BUILDING_WIDTH * 1.0, height + 3, 32, 1, true]} />
+        <cylinderGeometry args={[BUILDING_WIDTH * 1.05, BUILDING_WIDTH * 0.95, height + 2, 24, 1, true]} />
         <meshStandardMaterial
           color="#FFD700"
           transparent
-          opacity={0.08}
+          opacity={0.1}
           side={THREE.DoubleSide}
           emissive="#FFD700"
-          emissiveIntensity={0.6}
-          depthWrite={false}
-        />
-      </mesh>
-      {/* Inner brighter glow - smooth cylinder */}
-      <mesh ref={innerRef} position={[0, height / 2, 0]}>
-        <cylinderGeometry args={[BUILDING_WIDTH * 0.85, BUILDING_WIDTH * 0.8, height + 1.5, 32, 1, true]} />
-        <meshStandardMaterial
-          color="#FFA500"
-          transparent
-          opacity={0.06}
-          side={THREE.DoubleSide}
-          emissive="#FFA500"
           emissiveIntensity={0.8}
           depthWrite={false}
         />
       </mesh>
-      {/* Soft breathing glow sphere at mid height */}
-      <mesh ref={glowRef} position={[0, height / 2, 0]}>
-        <sphereGeometry args={[BUILDING_WIDTH * 1.2, 24, 24]} />
-        <meshStandardMaterial
-          color="#FFD700"
-          transparent
-          opacity={0.15}
-          emissive="#FFD700"
-          emissiveIntensity={1.0}
-          depthWrite={false}
-          side={THREE.DoubleSide}
-        />
-      </mesh>
-      {/* Golden point light at top */}
-      <pointLight position={[0, height + 1, 0]} intensity={2.0} distance={10} color="#FFD700" />
-      {/* Golden point light at mid */}
-      <pointLight position={[0, height / 2, 0]} intensity={1.0} distance={6} color="#FFAA00" />
-      {/* Golden point light at base */}
-      <pointLight position={[0, 0.5, 0]} intensity={0.8} distance={5} color="#FFA500" />
-      {/* Rising golden sparkle particles */}
+      {/* Single point light at top only (was 3 lights, now 1) */}
+      <pointLight position={[0, height + 1, 0]} intensity={1.5} distance={8} color="#FFD700" />
+      {/* Sparkle particles (reduced count) */}
       <GoldenSparkles height={height} />
-      {/* Ground glow ring - smooth */}
+      {/* Ground glow ring */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
-        <ringGeometry args={[BUILDING_WIDTH * 0.3, BUILDING_WIDTH * 1.5, 48]} />
+        <ringGeometry args={[BUILDING_WIDTH * 0.3, BUILDING_WIDTH * 1.3, 24]} />
         <meshStandardMaterial
           color="#FFD700"
           transparent
@@ -266,6 +222,8 @@ function FloorLines({ height }: { height: number }) {
   )
 }
 
+const LOD_DISTANCE = 30 // effects only render within this distance from camera
+
 function Building({ data, onClick }: { data: BuildingType; onClick: (b: BuildingType) => void }) {
   const isAdmin = data.is_admin || false
   const tier = isAdmin ? 8 : (data.height || 1) // Admin always max tier (gold)
@@ -276,12 +234,27 @@ function Building({ data, onClick }: { data: BuildingType; onClick: (b: Building
   const style = getTierStyle(tier)
   const bodyColor = isAdmin ? '#8B7500' : (data.color || style.body) // Admin = gold body
   const [hovered, setHovered] = useState(false)
+  const [isNear, setIsNear] = useState(false)
+  const groupRef = useRef<THREE.Group>(null)
   const w = BUILDING_WIDTH
 
+  // Check distance from camera every few frames for LOD
+  useFrame(({ camera }, _, xrFrame) => {
+    if (!groupRef.current) return
+    // Check every 10 frames to save CPU
+    const frame = Math.round(camera.position.x * 100) % 10
+    if (frame !== 0 && !isNear) return
+    const dx = camera.position.x - x
+    const dz = camera.position.z - z
+    const dist = Math.sqrt(dx * dx + dz * dz)
+    const near = dist < LOD_DISTANCE
+    if (near !== isNear) setIsNear(near)
+  })
+
   return (
-    <group position={[x, 0, z]}>
-      {/* Verified golden aura */}
-      {verified && <VerifiedAura height={height} />}
+    <group ref={groupRef} position={[x, 0, z]}>
+      {/* Verified golden aura - only when camera is near */}
+      {verified && isNear && <VerifiedAura height={height} />}
 
       {/* Foundation */}
       <mesh position={[0, 0.08, 0]} receiveShadow>
