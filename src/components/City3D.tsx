@@ -1,7 +1,7 @@
 'use client'
 
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { OrbitControls, Text } from '@react-three/drei'
+import { OrbitControls, Text, useGLTF } from '@react-three/drei'
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import * as THREE from 'three'
 import type { Building as BuildingType } from '@/lib/supabase'
@@ -699,412 +699,42 @@ function TieredCarBody({ tier }: { tier: number }) {
 
 function Character({ walking, running, moveSpeed = 0 }: { walking: boolean; running: boolean; moveSpeed?: number }) {
   const groupRef = useRef<THREE.Group>(null)
-  const leftArmRef = useRef<THREE.Group>(null)
-  const rightArmRef = useRef<THREE.Group>(null)
-  const leftLegRef = useRef<THREE.Group>(null)
-  const rightLegRef = useRef<THREE.Group>(null)
-  const cloakSwayRef = useRef<THREE.Group>(null)
+  const { scene: glbScene } = useGLTF('/models/satoshi.glb')
+
+  // Clone the model so each instance is independent
+  const model = useMemo(() => {
+    const clone = glbScene.clone(true)
+    // Ensure all materials render properly
+    clone.traverse((child: THREE.Object3D) => {
+      if ((child as THREE.Mesh).isMesh) {
+        const mesh = child as THREE.Mesh
+        mesh.castShadow = true
+        mesh.receiveShadow = true
+      }
+    })
+    return clone
+  }, [glbScene])
 
   useFrame((state) => {
+    if (!groupRef.current) return
     if (!walking && !running) {
-      if (leftArmRef.current) leftArmRef.current.rotation.x *= 0.85
-      if (rightArmRef.current) rightArmRef.current.rotation.x *= 0.85
-      if (leftLegRef.current) leftLegRef.current.rotation.x *= 0.85
-      if (rightLegRef.current) rightLegRef.current.rotation.x *= 0.85
-      if (groupRef.current) groupRef.current.position.y *= 0.85
-      if (cloakSwayRef.current) cloakSwayRef.current.rotation.x *= 0.9
+      // Smoothly return to idle
+      groupRef.current.position.y *= 0.85
       return
     }
     const animSpeed = Math.max(3, Math.abs(moveSpeed) * 60)
-    const amp = Math.min(0.7, Math.abs(moveSpeed) * 4)
     const t = state.clock.elapsedTime * animSpeed
-    const swing = Math.sin(t) * amp
-    if (leftArmRef.current) leftArmRef.current.rotation.x += (swing - leftArmRef.current.rotation.x) * 0.25
-    if (rightArmRef.current) rightArmRef.current.rotation.x += (-swing - rightArmRef.current.rotation.x) * 0.25
-    if (leftLegRef.current) leftLegRef.current.rotation.x += (-swing - leftLegRef.current.rotation.x) * 0.25
-    if (rightLegRef.current) rightLegRef.current.rotation.x += (swing - rightLegRef.current.rotation.x) * 0.25
-    if (groupRef.current) {
-      const bob = Math.abs(Math.sin(t * 2)) * Math.min(0.02, Math.abs(moveSpeed) * 0.15)
-      groupRef.current.position.y += (bob - groupRef.current.position.y) * 0.3
-    }
-    // Cloak sways while walking
-    if (cloakSwayRef.current) {
-      const sway = Math.sin(t * 0.7) * 0.04 * Math.min(1, Math.abs(moveSpeed) * 8)
-      cloakSwayRef.current.rotation.x += (sway - cloakSwayRef.current.rotation.x) * 0.15
-    }
+    // Walking bob
+    const bob = Math.abs(Math.sin(t * 2)) * Math.min(0.02, Math.abs(moveSpeed) * 0.15)
+    groupRef.current.position.y += (bob - groupRef.current.position.y) * 0.3
+    // Subtle body sway while walking
+    const sway = Math.sin(t * 0.7) * 0.015 * Math.min(1, Math.abs(moveSpeed) * 8)
+    groupRef.current.rotation.z += (sway - groupRef.current.rotation.z) * 0.1
   })
-
-  // PBR-style dark metal cloak material props
-  const cloakMat = { color: '#141414', roughness: 0.82, metalness: 0.18 }
-  const cloakDark = { color: '#0c0c0c', roughness: 0.9, metalness: 0.12 }
-  const cloakFold = { color: '#1e1e1e', roughness: 0.75, metalness: 0.22 }
-  // Bronze medallion
-  const bronzeMat = { color: '#8B6914', roughness: 0.4, metalness: 0.85 }
-  // Chrome mask
-  const maskMat = { color: '#c8c8c8', roughness: 0.18, metalness: 1 }
-  const maskDark = { color: '#444444', roughness: 0.25, metalness: 0.95 }
 
   return (
     <group ref={groupRef} scale={[0.42, 0.42, 0.42]}>
-
-      {/* ======================================================= */}
-      {/* ========== HEAVY CLOAK / ROBE WITH FABRIC FOLDS ======= */}
-      {/* ======================================================= */}
-      <group ref={cloakSwayRef}>
-        {/* Main cloak body - long, heavy, wider at bottom */}
-        <mesh position={[0, 0.95, 0]} castShadow>
-          <cylinderGeometry args={[0.38, 0.62, 1.9, 32]} />
-          <meshStandardMaterial {...cloakMat} />
-        </mesh>
-
-        {/* Cloak bottom flare - ground-touching hem */}
-        <mesh position={[0, 0.05, 0]} castShadow>
-          <cylinderGeometry args={[0.6, 0.72, 0.15, 32]} />
-          <meshStandardMaterial {...cloakDark} />
-        </mesh>
-
-        {/* Deep vertical fabric fold - center front */}
-        <mesh position={[0, 0.85, 0.32]}>
-          <capsuleGeometry args={[0.025, 1.3, 6, 10]} />
-          <meshStandardMaterial {...cloakDark} />
-        </mesh>
-        {/* Fold shadow groove - left of center */}
-        <mesh position={[-0.1, 0.8, 0.3]} rotation={[0, 0.08, 0]}>
-          <capsuleGeometry args={[0.018, 1.1, 4, 8]} />
-          <meshStandardMaterial {...cloakFold} />
-        </mesh>
-        {/* Fold shadow groove - right of center */}
-        <mesh position={[0.1, 0.8, 0.3]} rotation={[0, -0.08, 0]}>
-          <capsuleGeometry args={[0.018, 1.1, 4, 8]} />
-          <meshStandardMaterial {...cloakFold} />
-        </mesh>
-        {/* Deep side folds - left */}
-        <mesh position={[-0.28, 0.75, 0.15]} rotation={[0, 0.2, 0.04]}>
-          <capsuleGeometry args={[0.02, 1.0, 4, 8]} />
-          <meshStandardMaterial {...cloakDark} />
-        </mesh>
-        <mesh position={[-0.35, 0.7, 0.0]} rotation={[0, 0.3, 0.06]}>
-          <capsuleGeometry args={[0.015, 0.9, 4, 8]} />
-          <meshStandardMaterial {...cloakFold} />
-        </mesh>
-        {/* Deep side folds - right */}
-        <mesh position={[0.28, 0.75, 0.15]} rotation={[0, -0.2, -0.04]}>
-          <capsuleGeometry args={[0.02, 1.0, 4, 8]} />
-          <meshStandardMaterial {...cloakDark} />
-        </mesh>
-        <mesh position={[0.35, 0.7, 0.0]} rotation={[0, -0.3, -0.06]}>
-          <capsuleGeometry args={[0.015, 0.9, 4, 8]} />
-          <meshStandardMaterial {...cloakFold} />
-        </mesh>
-        {/* Back folds */}
-        <mesh position={[0, 0.8, -0.33]} rotation={[0, 0, 0]}>
-          <capsuleGeometry args={[0.02, 1.2, 4, 8]} />
-          <meshStandardMaterial {...cloakDark} />
-        </mesh>
-        <mesh position={[-0.15, 0.75, -0.3]} rotation={[0, -0.1, 0.03]}>
-          <capsuleGeometry args={[0.015, 0.9, 4, 8]} />
-          <meshStandardMaterial {...cloakFold} />
-        </mesh>
-        <mesh position={[0.15, 0.75, -0.3]} rotation={[0, 0.1, -0.03]}>
-          <capsuleGeometry args={[0.015, 0.9, 4, 8]} />
-          <meshStandardMaterial {...cloakFold} />
-        </mesh>
-      </group>
-
-      {/* ======================================================= */}
-      {/* ========== SHOULDERS & UPPER TORSO ==================== */}
-      {/* ======================================================= */}
-      {/* Broad shoulder mantle */}
-      <mesh position={[0, 1.78, 0]} scale={[1.3, 0.5, 1.1]}>
-        <sphereGeometry args={[0.32, 24, 16]} />
-        <meshStandardMaterial {...cloakMat} />
-      </mesh>
-      {/* Left shoulder pad */}
-      <mesh position={[-0.36, 1.78, 0]} scale={[0.8, 0.6, 0.9]}>
-        <sphereGeometry args={[0.14, 16, 12]} />
-        <meshStandardMaterial {...cloakFold} />
-      </mesh>
-      {/* Right shoulder pad */}
-      <mesh position={[0.36, 1.78, 0]} scale={[0.8, 0.6, 0.9]}>
-        <sphereGeometry args={[0.14, 16, 12]} />
-        <meshStandardMaterial {...cloakFold} />
-      </mesh>
-      {/* Collar / neckline ridge */}
-      <mesh position={[0, 1.88, 0.08]}>
-        <torusGeometry args={[0.16, 0.04, 12, 24, Math.PI * 1.2]} />
-        <meshStandardMaterial {...cloakDark} />
-      </mesh>
-
-      {/* ======================================================= */}
-      {/* ========== HOOD - DEEP, DRAMATIC ====================== */}
-      {/* ======================================================= */}
-      {/* Main hood shell - large, encompassing */}
-      <mesh position={[0, 2.15, -0.04]}>
-        <sphereGeometry args={[0.48, 32, 24, 0, Math.PI * 2, 0, Math.PI / 1.7]} />
-        <meshStandardMaterial color="#111111" roughness={0.88} metalness={0.15} side={THREE.DoubleSide} />
-      </mesh>
-      {/* Hood inner shadow (creates depth) */}
-      <mesh position={[0, 2.12, 0.02]}>
-        <sphereGeometry args={[0.43, 28, 20, 0, Math.PI * 2, 0, Math.PI / 1.9]} />
-        <meshStandardMaterial color="#050505" roughness={0.95} metalness={0.05} side={THREE.BackSide} />
-      </mesh>
-      {/* Hood back drape - extends down the back */}
-      <mesh position={[0, 1.85, -0.22]} scale={[1.0, 1.1, 0.8]}>
-        <sphereGeometry args={[0.36, 20, 16]} />
-        <meshStandardMaterial color="#0e0e0e" roughness={0.9} metalness={0.12} />
-      </mesh>
-      {/* Hood peak / point at top */}
-      <mesh position={[0, 2.38, -0.12]} scale={[0.6, 0.8, 0.6]}>
-        <sphereGeometry args={[0.15, 14, 10]} />
-        <meshStandardMaterial color="#101010" roughness={0.88} metalness={0.15} />
-      </mesh>
-      {/* Hood rim - left edge */}
-      <mesh position={[-0.25, 2.02, 0.2]} rotation={[0.5, 0.3, 0.2]} scale={[0.5, 1.2, 0.4]}>
-        <capsuleGeometry args={[0.06, 0.2, 8, 10]} />
-        <meshStandardMaterial {...cloakDark} />
-      </mesh>
-      {/* Hood rim - right edge */}
-      <mesh position={[0.25, 2.02, 0.2]} rotation={[0.5, -0.3, -0.2]} scale={[0.5, 1.2, 0.4]}>
-        <capsuleGeometry args={[0.06, 0.2, 8, 10]} />
-        <meshStandardMaterial {...cloakDark} />
-      </mesh>
-
-      {/* ======================================================= */}
-      {/* ========== METALLIC FACE MASK - REFLECTIVE ============ */}
-      {/* ======================================================= */}
-      {/* Main mask - smooth chrome */}
-      <mesh position={[0, 2.02, 0.24]} castShadow>
-        <sphereGeometry args={[0.24, 32, 28]} />
-        <meshStandardMaterial {...maskMat} />
-      </mesh>
-      {/* Face plane - flatter front surface */}
-      <mesh position={[0, 1.99, 0.38]} scale={[1.05, 0.95, 0.35]}>
-        <sphereGeometry args={[0.2, 24, 20]} />
-        <meshStandardMaterial color="#b8b8b8" metalness={1} roughness={0.15} />
-      </mesh>
-      {/* Brow ridge - prominent */}
-      <mesh position={[0, 2.1, 0.38]} scale={[1.4, 0.35, 0.4]}>
-        <capsuleGeometry args={[0.03, 0.12, 8, 10]} />
-        <meshStandardMaterial {...maskMat} />
-      </mesh>
-      {/* Eye socket left - deep recess */}
-      <mesh position={[-0.075, 2.06, 0.42]} scale={[1.4, 0.5, 0.3]}>
-        <sphereGeometry args={[0.038, 14, 10]} />
-        <meshStandardMaterial {...maskDark} />
-      </mesh>
-      {/* Eye socket right */}
-      <mesh position={[0.075, 2.06, 0.42]} scale={[1.4, 0.5, 0.3]}>
-        <sphereGeometry args={[0.038, 14, 10]} />
-        <meshStandardMaterial {...maskDark} />
-      </mesh>
-      {/* Eye glint left - subtle reflection */}
-      <mesh position={[-0.075, 2.065, 0.44]} scale={[0.6, 0.25, 0.15]}>
-        <sphereGeometry args={[0.02, 8, 6]} />
-        <meshStandardMaterial color="#666666" metalness={1} roughness={0.1} />
-      </mesh>
-      {/* Eye glint right */}
-      <mesh position={[0.075, 2.065, 0.44]} scale={[0.6, 0.25, 0.15]}>
-        <sphereGeometry args={[0.02, 8, 6]} />
-        <meshStandardMaterial color="#666666" metalness={1} roughness={0.1} />
-      </mesh>
-      {/* Nose bridge */}
-      <mesh position={[0, 2.02, 0.44]} rotation={[0.25, 0, 0]} scale={[0.45, 1.0, 0.35]}>
-        <capsuleGeometry args={[0.022, 0.07, 8, 10]} />
-        <meshStandardMaterial color="#bbbbbb" metalness={1} roughness={0.15} />
-      </mesh>
-      {/* Nose tip */}
-      <mesh position={[0, 1.97, 0.46]}>
-        <sphereGeometry args={[0.028, 12, 10]} />
-        <meshStandardMaterial color="#aaaaaa" metalness={1} roughness={0.2} />
-      </mesh>
-      {/* Nostrils */}
-      <mesh position={[-0.018, 1.96, 0.45]} scale={[0.7, 0.4, 0.3]}>
-        <sphereGeometry args={[0.012, 8, 6]} />
-        <meshStandardMaterial {...maskDark} />
-      </mesh>
-      <mesh position={[0.018, 1.96, 0.45]} scale={[0.7, 0.4, 0.3]}>
-        <sphereGeometry args={[0.012, 8, 6]} />
-        <meshStandardMaterial {...maskDark} />
-      </mesh>
-      {/* Upper lip line */}
-      <mesh position={[0, 1.92, 0.42]} scale={[1.0, 0.25, 0.25]}>
-        <capsuleGeometry args={[0.016, 0.06, 8, 10]} />
-        <meshStandardMaterial color="#888888" metalness={0.95} roughness={0.25} />
-      </mesh>
-      {/* Lower lip - slight protrusion */}
-      <mesh position={[0, 1.9, 0.41]} scale={[0.9, 0.35, 0.3]}>
-        <capsuleGeometry args={[0.015, 0.04, 8, 8]} />
-        <meshStandardMaterial color="#999999" metalness={0.95} roughness={0.2} />
-      </mesh>
-      {/* Chin - defined */}
-      <mesh position={[0, 1.85, 0.36]} scale={[0.75, 0.5, 0.5]}>
-        <sphereGeometry args={[0.065, 14, 10]} />
-        <meshStandardMaterial color="#b5b5b5" metalness={1} roughness={0.2} />
-      </mesh>
-      {/* Jawline left */}
-      <mesh position={[-0.1, 1.9, 0.3]} scale={[0.5, 0.7, 0.5]}>
-        <sphereGeometry args={[0.05, 10, 8]} />
-        <meshStandardMaterial color="#aaaaaa" metalness={1} roughness={0.22} />
-      </mesh>
-      {/* Jawline right */}
-      <mesh position={[0.1, 1.9, 0.3]} scale={[0.5, 0.7, 0.5]}>
-        <sphereGeometry args={[0.05, 10, 8]} />
-        <meshStandardMaterial color="#aaaaaa" metalness={1} roughness={0.22} />
-      </mesh>
-      {/* Cheekbones */}
-      <mesh position={[-0.12, 2.0, 0.35]} scale={[0.6, 0.4, 0.3]}>
-        <sphereGeometry args={[0.04, 10, 8]} />
-        <meshStandardMaterial {...maskMat} />
-      </mesh>
-      <mesh position={[0.12, 2.0, 0.35]} scale={[0.6, 0.4, 0.3]}>
-        <sphereGeometry args={[0.04, 10, 8]} />
-        <meshStandardMaterial {...maskMat} />
-      </mesh>
-
-      {/* Neck */}
-      <mesh position={[0, 1.88, 0.05]}>
-        <cylinderGeometry args={[0.08, 0.1, 0.08, 16]} />
-        <meshStandardMaterial {...cloakDark} />
-      </mesh>
-
-      {/* ======================================================= */}
-      {/* ========== BITCOIN MEDALLION ₿ (bronze, on chest) ===== */}
-      {/* ======================================================= */}
-      {/* Medallion base - bronze circle with rim */}
-      <mesh position={[0, 1.55, 0.4]}>
-        <circleGeometry args={[0.13, 32]} />
-        <meshStandardMaterial {...bronzeMat} emissive="#f7931a" emissiveIntensity={0.12} />
-      </mesh>
-      {/* Medallion rim */}
-      <mesh position={[0, 1.55, 0.395]}>
-        <torusGeometry args={[0.13, 0.015, 12, 32]} />
-        <meshStandardMaterial color="#a07830" metalness={0.9} roughness={0.35} />
-      </mesh>
-      {/* ₿ vertical stroke */}
-      <mesh position={[0, 1.55, 0.405]}>
-        <capsuleGeometry args={[0.01, 0.1, 4, 8]} />
-        <meshStandardMaterial color="#f7931a" metalness={0.7} roughness={0.25} emissive="#f7931a" emissiveIntensity={0.5} />
-      </mesh>
-      {/* ₿ upper curve */}
-      <mesh position={[0.02, 1.585, 0.405]} scale={[0.85, 0.55, 0.25]}>
-        <sphereGeometry args={[0.04, 10, 8]} />
-        <meshStandardMaterial color="#f7931a" metalness={0.7} roughness={0.25} emissive="#f7931a" emissiveIntensity={0.5} />
-      </mesh>
-      {/* ₿ lower curve */}
-      <mesh position={[0.02, 1.515, 0.405]} scale={[0.95, 0.6, 0.25]}>
-        <sphereGeometry args={[0.04, 10, 8]} />
-        <meshStandardMaterial color="#f7931a" metalness={0.7} roughness={0.25} emissive="#f7931a" emissiveIntensity={0.5} />
-      </mesh>
-      {/* ₿ top serif */}
-      <mesh position={[0, 1.615, 0.405]} rotation={[0, 0, Math.PI / 2]}>
-        <capsuleGeometry args={[0.006, 0.018, 4, 4]} />
-        <meshStandardMaterial color="#f7931a" metalness={0.7} roughness={0.25} emissive="#f7931a" emissiveIntensity={0.5} />
-      </mesh>
-      {/* ₿ bottom serif */}
-      <mesh position={[0, 1.485, 0.405]} rotation={[0, 0, Math.PI / 2]}>
-        <capsuleGeometry args={[0.006, 0.018, 4, 4]} />
-        <meshStandardMaterial color="#f7931a" metalness={0.7} roughness={0.25} emissive="#f7931a" emissiveIntensity={0.5} />
-      </mesh>
-
-      {/* ======================================================= */}
-      {/* ========== ARMS (hidden under cloak sleeves) ========== */}
-      {/* ======================================================= */}
-      {/* Left arm */}
-      <group ref={leftArmRef} position={[-0.4, 1.72, 0]}>
-        {/* Upper arm - wide sleeve */}
-        <mesh position={[0, -0.18, 0]}>
-          <capsuleGeometry args={[0.09, 0.22, 8, 12]} />
-          <meshStandardMaterial {...cloakMat} />
-        </mesh>
-        {/* Sleeve fold */}
-        <mesh position={[-0.04, -0.12, 0.05]} rotation={[0, 0.1, 0.1]}>
-          <capsuleGeometry args={[0.012, 0.18, 4, 6]} />
-          <meshStandardMaterial {...cloakDark} />
-        </mesh>
-        {/* Lower arm - tapered sleeve */}
-        <mesh position={[0, -0.4, 0]}>
-          <capsuleGeometry args={[0.075, 0.2, 8, 12]} />
-          <meshStandardMaterial {...cloakMat} />
-        </mesh>
-        {/* Sleeve fold lower */}
-        <mesh position={[0.03, -0.35, 0.04]}>
-          <capsuleGeometry args={[0.01, 0.15, 4, 6]} />
-          <meshStandardMaterial {...cloakFold} />
-        </mesh>
-        {/* Cuff */}
-        <mesh position={[0, -0.54, 0]}>
-          <cylinderGeometry args={[0.065, 0.075, 0.06, 14]} />
-          <meshStandardMaterial {...cloakDark} />
-        </mesh>
-        {/* Hand - chrome like mask */}
-        <mesh position={[0, -0.6, 0.01]}>
-          <sphereGeometry args={[0.045, 12, 10]} />
-          <meshStandardMaterial {...maskMat} />
-        </mesh>
-        {/* Fingers hint */}
-        <mesh position={[0, -0.64, 0.02]} scale={[0.8, 0.6, 0.5]}>
-          <sphereGeometry args={[0.03, 8, 6]} />
-          <meshStandardMaterial color="#b0b0b0" metalness={1} roughness={0.2} />
-        </mesh>
-      </group>
-      {/* Right arm */}
-      <group ref={rightArmRef} position={[0.4, 1.72, 0]}>
-        <mesh position={[0, -0.18, 0]}>
-          <capsuleGeometry args={[0.09, 0.22, 8, 12]} />
-          <meshStandardMaterial {...cloakMat} />
-        </mesh>
-        <mesh position={[0.04, -0.12, 0.05]} rotation={[0, -0.1, -0.1]}>
-          <capsuleGeometry args={[0.012, 0.18, 4, 6]} />
-          <meshStandardMaterial {...cloakDark} />
-        </mesh>
-        <mesh position={[0, -0.4, 0]}>
-          <capsuleGeometry args={[0.075, 0.2, 8, 12]} />
-          <meshStandardMaterial {...cloakMat} />
-        </mesh>
-        <mesh position={[-0.03, -0.35, 0.04]}>
-          <capsuleGeometry args={[0.01, 0.15, 4, 6]} />
-          <meshStandardMaterial {...cloakFold} />
-        </mesh>
-        <mesh position={[0, -0.54, 0]}>
-          <cylinderGeometry args={[0.065, 0.075, 0.06, 14]} />
-          <meshStandardMaterial {...cloakDark} />
-        </mesh>
-        <mesh position={[0, -0.6, 0.01]}>
-          <sphereGeometry args={[0.045, 12, 10]} />
-          <meshStandardMaterial {...maskMat} />
-        </mesh>
-        <mesh position={[0, -0.64, 0.02]} scale={[0.8, 0.6, 0.5]}>
-          <sphereGeometry args={[0.03, 8, 6]} />
-          <meshStandardMaterial color="#b0b0b0" metalness={1} roughness={0.2} />
-        </mesh>
-      </group>
-
-      {/* ======================================================= */}
-      {/* ========== LEGS (barely visible under cloak) ========== */}
-      {/* ======================================================= */}
-      {/* Left leg */}
-      <group ref={leftLegRef} position={[-0.12, 0.15, 0]}>
-        <mesh position={[0, -0.06, 0]}>
-          <capsuleGeometry args={[0.065, 0.15, 8, 10]} />
-          <meshStandardMaterial color="#0e0e0e" roughness={0.85} metalness={0.15} />
-        </mesh>
-        {/* Boot */}
-        <mesh position={[0, -0.2, 0.04]} scale={[1.0, 0.55, 1.5]}>
-          <capsuleGeometry args={[0.055, 0.04, 8, 10]} />
-          <meshStandardMaterial color="#080808" roughness={0.65} metalness={0.35} />
-        </mesh>
-      </group>
-      {/* Right leg */}
-      <group ref={rightLegRef} position={[0.12, 0.15, 0]}>
-        <mesh position={[0, -0.06, 0]}>
-          <capsuleGeometry args={[0.065, 0.15, 8, 10]} />
-          <meshStandardMaterial color="#0e0e0e" roughness={0.85} metalness={0.15} />
-        </mesh>
-        <mesh position={[0, -0.2, 0.04]} scale={[1.0, 0.55, 1.5]}>
-          <capsuleGeometry args={[0.055, 0.04, 8, 10]} />
-          <meshStandardMaterial color="#080808" roughness={0.65} metalness={0.35} />
-        </mesh>
-      </group>
+      <primitive object={model} />
     </group>
   )
 }
@@ -2372,3 +2002,6 @@ export default function City3D({ buildings, drivingMode = false, walkingMode = f
     </div>
   )
 }
+
+// Preload the Satoshi GLB model
+useGLTF.preload('/models/satoshi.glb')
