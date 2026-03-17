@@ -36,6 +36,60 @@ function getTierStyle(tier: number) {
   return styles[tier] || styles[1]
 }
 
+// ==================== STARRY SKY (lightweight) ====================
+
+function StarrySky() {
+  const starsRef = useRef<THREE.Points>(null)
+  const count = 600
+
+  const positions = useMemo(() => {
+    const pos = new Float32Array(count * 3)
+    for (let i = 0; i < count; i++) {
+      // Distribute on a large sphere shell
+      const theta = Math.random() * Math.PI * 2
+      const phi = Math.acos(1 - Math.random() * 1.2) // mostly upper hemisphere
+      const r = 160 + Math.random() * 40
+      pos[i * 3] = r * Math.sin(phi) * Math.cos(theta)
+      pos[i * 3 + 1] = Math.abs(r * Math.cos(phi)) + 20 // always above horizon
+      pos[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta)
+    }
+    return pos
+  }, [])
+
+  const sizes = useMemo(() => {
+    const s = new Float32Array(count)
+    for (let i = 0; i < count; i++) {
+      s[i] = 0.3 + Math.random() * 0.7
+    }
+    return s
+  }, [])
+
+  // Subtle twinkle
+  useFrame((state) => {
+    if (!starsRef.current) return
+    const mat = starsRef.current.material as THREE.PointsMaterial
+    mat.opacity = 0.7 + Math.sin(state.clock.elapsedTime * 0.5) * 0.15
+  })
+
+  return (
+    <points ref={starsRef} frustumCulled={false}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" count={count} array={positions} itemSize={3} />
+        <bufferAttribute attach="attributes-size" count={count} array={sizes} itemSize={1} />
+      </bufferGeometry>
+      <pointsMaterial
+        color="#ffffff"
+        size={0.5}
+        transparent
+        opacity={0.8}
+        sizeAttenuation
+        depthWrite={false}
+        blending={THREE.AdditiveBlending}
+      />
+    </points>
+  )
+}
+
 // ==================== TIERED CAR STYLES ====================
 
 function getTierCarStyle(tier: number) {
@@ -659,7 +713,6 @@ function Character({ walking, running, moveSpeed = 0 }: { walking: boolean; runn
       if (groupRef.current) groupRef.current.position.y *= 0.85
       return
     }
-    // Animation speed proportional to actual movement speed
     const animSpeed = Math.max(3, Math.abs(moveSpeed) * 60)
     const amp = Math.min(0.7, Math.abs(moveSpeed) * 4)
     const t = state.clock.elapsedTime * animSpeed
@@ -668,303 +721,240 @@ function Character({ walking, running, moveSpeed = 0 }: { walking: boolean; runn
     if (rightArmRef.current) rightArmRef.current.rotation.x += (-swing - rightArmRef.current.rotation.x) * 0.25
     if (leftLegRef.current) leftLegRef.current.rotation.x += (-swing - leftLegRef.current.rotation.x) * 0.25
     if (rightLegRef.current) rightLegRef.current.rotation.x += (swing - rightLegRef.current.rotation.x) * 0.25
-    // Body bob proportional to speed
     if (groupRef.current) {
       const bob = Math.abs(Math.sin(t * 2)) * Math.min(0.02, Math.abs(moveSpeed) * 0.15)
       groupRef.current.position.y += (bob - groupRef.current.position.y) * 0.3
     }
   })
 
-  // Bobblehead Trump colors
-  const skinColor = '#e8b490'
-  const skinDark = '#d4a080' // cheeks/chin shadow
-  const suitColor = '#1a1a2e' // dark navy/black suit
-  const pantsColor = '#1a1a2e'
-  const tieColor = '#cc1111' // bright red tie
-  const hairColor = '#f0d060' // light blonde
-  const hairDark = '#d4b840' // hair shadow
-  const shoeColor = '#111'
-  const shirtColor = '#f5f5f5' // white shirt
+  // Satoshi Nakamoto statue colors - bronze metallic
+  const bronze = '#8B6914'
+  const bronzeLight = '#B8860B'
+  const bronzeDark = '#6B4F10'
+  const bronzeFace = '#CD9B1D'
+  const bronzeShiny = '#DAA520'
+  const btcOrange = '#f7931a'
 
-  // Bobblehead proportions: huge head, small stubby body
   return (
-    <group ref={groupRef} scale={[0.5, 0.5, 0.5]}>
+    <group ref={groupRef} scale={[0.55, 0.55, 0.55]}>
 
-      {/* ========== GIANT HEAD ========== */}
-      <group position={[0, 1.55, 0]}>
-        {/* Main head - very large, slightly wide */}
-        <mesh position={[0, 0, 0]} scale={[1.1, 1.0, 1.0]}>
-          <sphereGeometry args={[0.28, 24, 20]} />
-          <meshStandardMaterial color={skinColor} />
-        </mesh>
-        {/* Forehead bump - makes face look bigger at top */}
-        <mesh position={[0, 0.08, 0.08]}>
-          <sphereGeometry args={[0.22, 16, 12]} />
-          <meshStandardMaterial color={skinColor} />
-        </mesh>
-        {/* Cheeks - round, puffy */}
-        <mesh position={[-0.12, -0.04, 0.15]}>
-          <sphereGeometry args={[0.1, 12, 10]} />
-          <meshStandardMaterial color={skinDark} />
-        </mesh>
-        <mesh position={[0.12, -0.04, 0.15]}>
-          <sphereGeometry args={[0.1, 12, 10]} />
-          <meshStandardMaterial color={skinDark} />
-        </mesh>
-        {/* Chin - prominent double chin */}
-        <mesh position={[0, -0.2, 0.1]}>
-          <sphereGeometry args={[0.12, 12, 10]} />
-          <meshStandardMaterial color={skinDark} />
-        </mesh>
-        <mesh position={[0, -0.26, 0.06]}>
-          <sphereGeometry args={[0.09, 10, 8]} />
-          <meshStandardMaterial color={skinDark} />
+      {/* ========== HEAD WITH HOOD ========== */}
+      <group position={[0, 1.62, 0]}>
+        {/* Face - smooth bronze oval */}
+        <mesh position={[0, 0, 0.02]}>
+          <sphereGeometry args={[0.19, 20, 16]} />
+          <meshStandardMaterial color={bronzeFace} metalness={0.7} roughness={0.3} />
         </mesh>
 
-        {/* ---- HAIR: voluminous blonde swept to the right ---- */}
-        {/* Main hair volume on top */}
-        <mesh position={[0.02, 0.2, -0.02]} scale={[1.15, 0.7, 1.0]}>
-          <sphereGeometry args={[0.26, 20, 14]} />
-          <meshStandardMaterial color={hairColor} />
+        {/* Hood - wrapping around head */}
+        {/* Hood top */}
+        <mesh position={[0, 0.1, -0.04]} scale={[1.15, 0.9, 1.1]}>
+          <sphereGeometry args={[0.22, 18, 14]} />
+          <meshStandardMaterial color={bronze} metalness={0.5} roughness={0.45} />
         </mesh>
-        {/* Hair swoop front-right (signature sweep) */}
-        <mesh position={[0.1, 0.18, 0.1]} scale={[1.0, 0.5, 0.8]}>
+        {/* Hood sides - draping down */}
+        <mesh position={[-0.16, -0.04, 0.02]} scale={[0.7, 1.1, 0.9]}>
+          <sphereGeometry args={[0.14, 14, 10]} />
+          <meshStandardMaterial color={bronzeDark} metalness={0.5} roughness={0.45} />
+        </mesh>
+        <mesh position={[0.16, -0.04, 0.02]} scale={[0.7, 1.1, 0.9]}>
+          <sphereGeometry args={[0.14, 14, 10]} />
+          <meshStandardMaterial color={bronzeDark} metalness={0.5} roughness={0.45} />
+        </mesh>
+        {/* Hood rim - arched over face */}
+        <mesh position={[0, 0.12, 0.1]} rotation={[0.3, 0, 0]} scale={[1.2, 0.35, 0.6]}>
+          <capsuleGeometry args={[0.12, 0.14, 8, 12]} />
+          <meshStandardMaterial color={bronzeDark} metalness={0.5} roughness={0.4} />
+        </mesh>
+        {/* Hood back drape */}
+        <mesh position={[0, -0.06, -0.14]} scale={[1.0, 1.2, 0.7]}>
           <sphereGeometry args={[0.18, 14, 10]} />
-          <meshStandardMaterial color={hairColor} />
-        </mesh>
-        {/* Hair front left - slight volume */}
-        <mesh position={[-0.08, 0.16, 0.1]} scale={[0.8, 0.45, 0.7]}>
-          <sphereGeometry args={[0.15, 12, 8]} />
-          <meshStandardMaterial color={hairColor} />
-        </mesh>
-        {/* Hair sides */}
-        <mesh position={[-0.22, 0.02, -0.04]} scale={[0.6, 0.7, 0.8]}>
-          <sphereGeometry args={[0.1, 10, 8]} />
-          <meshStandardMaterial color={hairDark} />
-        </mesh>
-        <mesh position={[0.22, 0.02, -0.04]} scale={[0.6, 0.7, 0.8]}>
-          <sphereGeometry args={[0.1, 10, 8]} />
-          <meshStandardMaterial color={hairDark} />
-        </mesh>
-        {/* Hair back */}
-        <mesh position={[0, 0.06, -0.2]} scale={[1.0, 0.8, 0.6]}>
-          <sphereGeometry args={[0.2, 12, 10]} />
-          <meshStandardMaterial color={hairDark} />
+          <meshStandardMaterial color={bronzeDark} metalness={0.5} roughness={0.5} />
         </mesh>
 
-        {/* ---- FACE FEATURES ---- */}
-        {/* Eyes - small squinty (signature look) */}
-        <mesh position={[-0.08, 0.02, 0.24]}>
-          <sphereGeometry args={[0.03, 12, 10]} />
-          <meshStandardMaterial color="white" />
+        {/* Face features - subtle, mysterious */}
+        {/* Eye sockets - recessed shadows */}
+        <mesh position={[-0.065, 0.02, 0.16]} scale={[1.2, 0.5, 0.4]}>
+          <sphereGeometry args={[0.03, 10, 8]} />
+          <meshStandardMaterial color={bronzeDark} metalness={0.8} roughness={0.2} />
         </mesh>
-        <mesh position={[0.08, 0.02, 0.24]}>
-          <sphereGeometry args={[0.03, 12, 10]} />
-          <meshStandardMaterial color="white" />
+        <mesh position={[0.065, 0.02, 0.16]} scale={[1.2, 0.5, 0.4]}>
+          <sphereGeometry args={[0.03, 10, 8]} />
+          <meshStandardMaterial color={bronzeDark} metalness={0.8} roughness={0.2} />
         </mesh>
-        {/* Pupils - small blue */}
-        <mesh position={[-0.08, 0.02, 0.268]}>
-          <sphereGeometry args={[0.016, 10, 8]} />
-          <meshStandardMaterial color="#4477bb" />
+        {/* Brow ridge */}
+        <mesh position={[0, 0.06, 0.15]} scale={[1.6, 0.3, 0.5]}>
+          <capsuleGeometry args={[0.02, 0.08, 6, 8]} />
+          <meshStandardMaterial color={bronzeFace} metalness={0.7} roughness={0.3} />
         </mesh>
-        <mesh position={[0.08, 0.02, 0.268]}>
-          <sphereGeometry args={[0.016, 10, 8]} />
-          <meshStandardMaterial color="#4477bb" />
+        {/* Nose - subtle ridge */}
+        <mesh position={[0, -0.02, 0.19]} rotation={[0.2, 0, 0]}>
+          <capsuleGeometry args={[0.018, 0.04, 6, 8]} />
+          <meshStandardMaterial color={bronzeShiny} metalness={0.8} roughness={0.2} />
         </mesh>
-        {/* Eyelids - heavy, squinting */}
-        <mesh position={[-0.08, 0.045, 0.245]} scale={[1.3, 0.4, 0.5]}>
-          <sphereGeometry args={[0.03, 10, 6]} />
-          <meshStandardMaterial color={skinColor} />
+        {/* Nose tip */}
+        <mesh position={[0, -0.05, 0.2]}>
+          <sphereGeometry args={[0.022, 10, 8]} />
+          <meshStandardMaterial color={bronzeShiny} metalness={0.8} roughness={0.2} />
         </mesh>
-        <mesh position={[0.08, 0.045, 0.245]} scale={[1.3, 0.4, 0.5]}>
-          <sphereGeometry args={[0.03, 10, 6]} />
-          <meshStandardMaterial color={skinColor} />
+        {/* Lips - subtle line */}
+        <mesh position={[0, -0.1, 0.17]} scale={[1.0, 0.4, 0.4]}>
+          <capsuleGeometry args={[0.015, 0.04, 6, 8]} />
+          <meshStandardMaterial color={bronzeLight} metalness={0.7} roughness={0.3} />
         </mesh>
-        {/* Eyebrows - light blonde, thick */}
-        <mesh position={[-0.08, 0.075, 0.22]} rotation={[0.2, 0, -0.15]} scale={[1.0, 0.5, 0.5]}>
-          <capsuleGeometry args={[0.012, 0.05, 4, 8]} />
-          <meshStandardMaterial color={hairDark} />
+        {/* Chin */}
+        <mesh position={[0, -0.16, 0.12]}>
+          <sphereGeometry args={[0.05, 10, 8]} />
+          <meshStandardMaterial color={bronzeFace} metalness={0.7} roughness={0.3} />
         </mesh>
-        <mesh position={[0.08, 0.075, 0.22]} rotation={[0.2, 0, 0.15]} scale={[1.0, 0.5, 0.5]}>
-          <capsuleGeometry args={[0.012, 0.05, 4, 8]} />
-          <meshStandardMaterial color={hairDark} />
+        {/* Jaw line */}
+        <mesh position={[-0.08, -0.12, 0.08]} scale={[0.6, 0.5, 0.7]}>
+          <sphereGeometry args={[0.05, 8, 6]} />
+          <meshStandardMaterial color={bronzeFace} metalness={0.6} roughness={0.35} />
         </mesh>
-        {/* Nose - prominent */}
-        <mesh position={[0, -0.04, 0.26]}>
-          <sphereGeometry args={[0.04, 12, 10]} />
-          <meshStandardMaterial color={skinDark} />
-        </mesh>
-        <mesh position={[0, -0.02, 0.24]}>
-          <capsuleGeometry args={[0.02, 0.04, 6, 8]} />
-          <meshStandardMaterial color={skinColor} />
-        </mesh>
-        {/* Mouth - signature smirk/pout */}
-        <mesh position={[0, -0.11, 0.22]} scale={[1.2, 0.6, 0.5]}>
-          <capsuleGeometry args={[0.02, 0.04, 4, 8]} />
-          <meshStandardMaterial color="#cc8877" />
-        </mesh>
-        {/* Lower lip */}
-        <mesh position={[0, -0.13, 0.21]} scale={[1.0, 0.5, 0.4]}>
-          <capsuleGeometry args={[0.018, 0.03, 4, 8]} />
-          <meshStandardMaterial color="#bb7766" />
-        </mesh>
-        {/* Ears */}
-        <mesh position={[-0.27, -0.02, 0]}>
-          <sphereGeometry args={[0.04, 10, 8]} />
-          <meshStandardMaterial color={skinDark} />
-        </mesh>
-        <mesh position={[0.27, -0.02, 0]}>
-          <sphereGeometry args={[0.04, 10, 8]} />
-          <meshStandardMaterial color={skinDark} />
-        </mesh>
-        {/* Neck wrinkles / jaw line */}
-        <mesh position={[0, -0.28, 0.02]}>
-          <cylinderGeometry args={[0.1, 0.08, 0.06, 12]} />
-          <meshStandardMaterial color={skinDark} />
+        <mesh position={[0.08, -0.12, 0.08]} scale={[0.6, 0.5, 0.7]}>
+          <sphereGeometry args={[0.05, 8, 6]} />
+          <meshStandardMaterial color={bronzeFace} metalness={0.6} roughness={0.35} />
         </mesh>
       </group>
 
-      {/* ========== SMALL STUBBY BODY ========== */}
-      {/* Neck */}
-      <mesh position={[0, 1.22, 0]}>
-        <cylinderGeometry args={[0.08, 0.1, 0.1, 12]} />
-        <meshStandardMaterial color={skinColor} />
+      {/* ========== NECK ========== */}
+      <mesh position={[0, 1.38, 0]}>
+        <cylinderGeometry args={[0.07, 0.09, 0.12, 12]} />
+        <meshStandardMaterial color={bronzeFace} metalness={0.6} roughness={0.35} />
       </mesh>
 
-      {/* Suit jacket - torso (wide, short) */}
-      <mesh position={[0, 1.0, 0]}>
-        <capsuleGeometry args={[0.16, 0.22, 8, 16]} />
-        <meshStandardMaterial color={suitColor} roughness={0.6} />
+      {/* ========== HOODIE TORSO ========== */}
+      {/* Main torso */}
+      <mesh position={[0, 1.08, 0]}>
+        <capsuleGeometry args={[0.18, 0.32, 8, 16]} />
+        <meshStandardMaterial color={bronze} metalness={0.5} roughness={0.45} />
       </mesh>
-      {/* Jacket shoulders - wider */}
-      <mesh position={[-0.14, 1.12, 0]} scale={[1.2, 0.8, 1.0]}>
-        <sphereGeometry args={[0.07, 10, 8]} />
-        <meshStandardMaterial color={suitColor} />
+      {/* Hoodie collar / neckline */}
+      <mesh position={[0, 1.3, 0.06]} scale={[1.0, 0.6, 0.7]}>
+        <capsuleGeometry args={[0.1, 0.06, 6, 10]} />
+        <meshStandardMaterial color={bronzeDark} metalness={0.5} roughness={0.4} />
       </mesh>
-      <mesh position={[0.14, 1.12, 0]} scale={[1.2, 0.8, 1.0]}>
-        <sphereGeometry args={[0.07, 10, 8]} />
-        <meshStandardMaterial color={suitColor} />
+      {/* Shoulders - natural, rounded */}
+      <mesh position={[-0.17, 1.22, 0]} scale={[1.1, 0.7, 0.9]}>
+        <sphereGeometry args={[0.08, 10, 8]} />
+        <meshStandardMaterial color={bronze} metalness={0.5} roughness={0.45} />
       </mesh>
-
-      {/* White shirt V (visible under jacket) */}
-      <mesh position={[0, 1.1, 0.12]}>
-        <capsuleGeometry args={[0.06, 0.12, 4, 8]} />
-        <meshStandardMaterial color={shirtColor} />
-      </mesh>
-      {/* Shirt collar */}
-      <mesh position={[-0.04, 1.17, 0.1]} rotation={[0, 0, 0.3]}>
-        <capsuleGeometry args={[0.015, 0.04, 4, 6]} />
-        <meshStandardMaterial color={shirtColor} />
-      </mesh>
-      <mesh position={[0.04, 1.17, 0.1]} rotation={[0, 0, -0.3]}>
-        <capsuleGeometry args={[0.015, 0.04, 4, 6]} />
-        <meshStandardMaterial color={shirtColor} />
+      <mesh position={[0.17, 1.22, 0]} scale={[1.1, 0.7, 0.9]}>
+        <sphereGeometry args={[0.08, 10, 8]} />
+        <meshStandardMaterial color={bronze} metalness={0.5} roughness={0.45} />
       </mesh>
 
-      {/* RED TIE - long, prominent */}
-      <mesh position={[0, 1.15, 0.14]}>
-        <sphereGeometry args={[0.025, 8, 6]} />
-        <meshStandardMaterial color={tieColor} />
+      {/* ========== BITCOIN LOGO on chest ========== */}
+      {/* Circle background */}
+      <mesh position={[0, 1.12, 0.185]} rotation={[0, 0, 0]}>
+        <circleGeometry args={[0.075, 24]} />
+        <meshStandardMaterial color={bronzeDark} metalness={0.6} roughness={0.3} />
       </mesh>
-      <mesh position={[0, 1.02, 0.15]}>
-        <capsuleGeometry args={[0.025, 0.2, 4, 8]} />
-        <meshStandardMaterial color={tieColor} />
+      {/* B letter - vertical bar */}
+      <mesh position={[0, 1.12, 0.187]}>
+        <capsuleGeometry args={[0.008, 0.06, 4, 6]} />
+        <meshStandardMaterial color={btcOrange} metalness={0.4} roughness={0.3} emissive={btcOrange} emissiveIntensity={0.3} />
       </mesh>
-      {/* Tie point at bottom */}
-      <mesh position={[0, 0.88, 0.15]} scale={[1, 1.2, 0.5]}>
-        <coneGeometry args={[0.03, 0.06, 6]} />
-        <meshStandardMaterial color={tieColor} />
+      {/* B upper bump */}
+      <mesh position={[0.015, 1.145, 0.187]} scale={[0.8, 0.6, 0.3]}>
+        <sphereGeometry args={[0.03, 8, 6]} />
+        <meshStandardMaterial color={btcOrange} metalness={0.4} roughness={0.3} emissive={btcOrange} emissiveIntensity={0.3} />
+      </mesh>
+      {/* B lower bump */}
+      <mesh position={[0.015, 1.095, 0.187]} scale={[0.9, 0.65, 0.3]}>
+        <sphereGeometry args={[0.03, 8, 6]} />
+        <meshStandardMaterial color={btcOrange} metalness={0.4} roughness={0.3} emissive={btcOrange} emissiveIntensity={0.3} />
+      </mesh>
+      {/* B top serif */}
+      <mesh position={[0, 1.165, 0.187]} rotation={[0, 0, Math.PI / 2]}>
+        <capsuleGeometry args={[0.005, 0.015, 4, 4]} />
+        <meshStandardMaterial color={btcOrange} metalness={0.4} roughness={0.3} emissive={btcOrange} emissiveIntensity={0.3} />
+      </mesh>
+      {/* B bottom serif */}
+      <mesh position={[0, 1.075, 0.187]} rotation={[0, 0, Math.PI / 2]}>
+        <capsuleGeometry args={[0.005, 0.015, 4, 4]} />
+        <meshStandardMaterial color={btcOrange} metalness={0.4} roughness={0.3} emissive={btcOrange} emissiveIntensity={0.3} />
       </mesh>
 
+      {/* Hoodie center line */}
+      <mesh position={[0, 1.0, 0.18]}>
+        <capsuleGeometry args={[0.008, 0.25, 4, 6]} />
+        <meshStandardMaterial color={bronzeDark} metalness={0.5} roughness={0.4} />
+      </mesh>
+      {/* Hoodie pocket */}
+      <mesh position={[0, 0.88, 0.16]} scale={[2.0, 0.5, 0.3]}>
+        <capsuleGeometry args={[0.04, 0.06, 6, 8]} />
+        <meshStandardMaterial color={bronzeDark} metalness={0.5} roughness={0.5} />
+      </mesh>
+
+      {/* ========== ARMS ========== */}
       {/* Left arm */}
-      <group ref={leftArmRef} position={[-0.22, 1.1, 0]}>
+      <group ref={leftArmRef} position={[-0.24, 1.2, 0]}>
         {/* Upper arm */}
-        <mesh position={[0, -0.1, 0]}>
+        <mesh position={[0, -0.12, 0]}>
+          <capsuleGeometry args={[0.06, 0.14, 6, 10]} />
+          <meshStandardMaterial color={bronze} metalness={0.5} roughness={0.45} />
+        </mesh>
+        {/* Forearm */}
+        <mesh position={[0, -0.28, 0]}>
           <capsuleGeometry args={[0.05, 0.12, 6, 10]} />
-          <meshStandardMaterial color={suitColor} />
+          <meshStandardMaterial color={bronze} metalness={0.5} roughness={0.45} />
         </mesh>
-        {/* Lower arm / cuff */}
-        <mesh position={[0, -0.24, 0]}>
-          <capsuleGeometry args={[0.04, 0.1, 6, 8]} />
-          <meshStandardMaterial color={suitColor} />
-        </mesh>
-        {/* Shirt cuff */}
-        <mesh position={[0, -0.3, 0]}>
-          <cylinderGeometry args={[0.035, 0.04, 0.03, 8]} />
-          <meshStandardMaterial color={shirtColor} />
-        </mesh>
-        {/* Hand - open, palm out */}
-        <mesh position={[0, -0.35, 0.01]}>
-          <sphereGeometry args={[0.04, 12, 10]} />
-          <meshStandardMaterial color={skinColor} />
-        </mesh>
-        {/* Fingers spread */}
-        <mesh position={[-0.02, -0.38, 0.03]} rotation={[0.3, 0, -0.2]}>
-          <capsuleGeometry args={[0.008, 0.03, 4, 6]} />
-          <meshStandardMaterial color={skinColor} />
-        </mesh>
-        <mesh position={[0.02, -0.38, 0.03]} rotation={[0.3, 0, 0.2]}>
-          <capsuleGeometry args={[0.008, 0.03, 4, 6]} />
-          <meshStandardMaterial color={skinColor} />
+        {/* Hand */}
+        <mesh position={[0, -0.38, 0.01]}>
+          <sphereGeometry args={[0.04, 10, 8]} />
+          <meshStandardMaterial color={bronzeFace} metalness={0.6} roughness={0.3} />
         </mesh>
       </group>
       {/* Right arm */}
-      <group ref={rightArmRef} position={[0.22, 1.1, 0]}>
-        <mesh position={[0, -0.1, 0]}>
+      <group ref={rightArmRef} position={[0.24, 1.2, 0]}>
+        <mesh position={[0, -0.12, 0]}>
+          <capsuleGeometry args={[0.06, 0.14, 6, 10]} />
+          <meshStandardMaterial color={bronze} metalness={0.5} roughness={0.45} />
+        </mesh>
+        <mesh position={[0, -0.28, 0]}>
           <capsuleGeometry args={[0.05, 0.12, 6, 10]} />
-          <meshStandardMaterial color={suitColor} />
+          <meshStandardMaterial color={bronze} metalness={0.5} roughness={0.45} />
         </mesh>
-        <mesh position={[0, -0.24, 0]}>
-          <capsuleGeometry args={[0.04, 0.1, 6, 8]} />
-          <meshStandardMaterial color={suitColor} />
-        </mesh>
-        <mesh position={[0, -0.3, 0]}>
-          <cylinderGeometry args={[0.035, 0.04, 0.03, 8]} />
-          <meshStandardMaterial color={shirtColor} />
-        </mesh>
-        <mesh position={[0, -0.35, 0.01]}>
-          <sphereGeometry args={[0.04, 12, 10]} />
-          <meshStandardMaterial color={skinColor} />
-        </mesh>
-        <mesh position={[-0.02, -0.38, 0.03]} rotation={[0.3, 0, -0.2]}>
-          <capsuleGeometry args={[0.008, 0.03, 4, 6]} />
-          <meshStandardMaterial color={skinColor} />
-        </mesh>
-        <mesh position={[0.02, -0.38, 0.03]} rotation={[0.3, 0, 0.2]}>
-          <capsuleGeometry args={[0.008, 0.03, 4, 6]} />
-          <meshStandardMaterial color={skinColor} />
+        <mesh position={[0, -0.38, 0.01]}>
+          <sphereGeometry args={[0.04, 10, 8]} />
+          <meshStandardMaterial color={bronzeFace} metalness={0.6} roughness={0.3} />
         </mesh>
       </group>
 
-      {/* Left leg - short stubby */}
-      <group ref={leftLegRef} position={[-0.07, 0.82, 0]}>
-        <mesh position={[0, -0.1, 0]}>
+      {/* ========== LEGS ========== */}
+      {/* Left leg */}
+      <group ref={leftLegRef} position={[-0.08, 0.84, 0]}>
+        {/* Upper leg */}
+        <mesh position={[0, -0.12, 0]}>
+          <capsuleGeometry args={[0.065, 0.16, 6, 10]} />
+          <meshStandardMaterial color={bronzeDark} metalness={0.5} roughness={0.5} />
+        </mesh>
+        {/* Lower leg */}
+        <mesh position={[0, -0.3, 0]}>
           <capsuleGeometry args={[0.055, 0.14, 6, 10]} />
-          <meshStandardMaterial color={pantsColor} />
+          <meshStandardMaterial color={bronzeDark} metalness={0.5} roughness={0.5} />
         </mesh>
-        <mesh position={[0, -0.24, 0]}>
-          <capsuleGeometry args={[0.05, 0.08, 6, 8]} />
-          <meshStandardMaterial color={pantsColor} />
-        </mesh>
-        {/* Shoe - chunky black */}
-        <mesh position={[0, -0.33, 0.02]}>
-          <capsuleGeometry args={[0.045, 0.05, 4, 8]} />
-          <meshStandardMaterial color={shoeColor} roughness={0.3} />
+        {/* Shoe */}
+        <mesh position={[0, -0.42, 0.02]} scale={[1.0, 0.6, 1.3]}>
+          <capsuleGeometry args={[0.05, 0.04, 6, 8]} />
+          <meshStandardMaterial color={bronzeDark} metalness={0.6} roughness={0.35} />
         </mesh>
       </group>
       {/* Right leg */}
-      <group ref={rightLegRef} position={[0.07, 0.82, 0]}>
-        <mesh position={[0, -0.1, 0]}>
+      <group ref={rightLegRef} position={[0.08, 0.84, 0]}>
+        <mesh position={[0, -0.12, 0]}>
+          <capsuleGeometry args={[0.065, 0.16, 6, 10]} />
+          <meshStandardMaterial color={bronzeDark} metalness={0.5} roughness={0.5} />
+        </mesh>
+        <mesh position={[0, -0.3, 0]}>
           <capsuleGeometry args={[0.055, 0.14, 6, 10]} />
-          <meshStandardMaterial color={pantsColor} />
+          <meshStandardMaterial color={bronzeDark} metalness={0.5} roughness={0.5} />
         </mesh>
-        <mesh position={[0, -0.24, 0]}>
-          <capsuleGeometry args={[0.05, 0.08, 6, 8]} />
-          <meshStandardMaterial color={pantsColor} />
-        </mesh>
-        <mesh position={[0, -0.33, 0.02]}>
-          <capsuleGeometry args={[0.045, 0.05, 4, 8]} />
-          <meshStandardMaterial color={shoeColor} roughness={0.3} />
+        <mesh position={[0, -0.42, 0.02]} scale={[1.0, 0.6, 1.3]}>
+          <capsuleGeometry args={[0.05, 0.04, 6, 8]} />
+          <meshStandardMaterial color={bronzeDark} metalness={0.6} roughness={0.35} />
         </mesh>
       </group>
     </group>
@@ -2228,6 +2218,7 @@ export default function City3D({ buildings, drivingMode = false, walkingMode = f
           />
         )}
 
+        <StarrySky />
         <fog attach="fog" args={['#2d1a0a', 80, 200]} />
       </Canvas>
     </div>
