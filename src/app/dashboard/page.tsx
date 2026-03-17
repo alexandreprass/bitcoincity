@@ -7,6 +7,13 @@ import { satoshisToBtc, getBuildingLabel, VERIFICATION_WALLET } from '@/lib/bitc
 import Navbar from '@/components/Navbar'
 import Link from 'next/link'
 import { CHARACTER_LIST, getCharacterName, getCharacterFile } from '@/lib/characters'
+import dynamic from 'next/dynamic'
+
+const CharacterPreview = dynamic(() => import('@/components/CharacterPreview'), { ssr: false })
+const CharacterThumbnailDynamic = dynamic(
+  () => import('@/components/CharacterPreview').then(mod => ({ default: mod.CharacterThumbnail })),
+  { ssr: false }
+)
 
 const BUILDING_COLORS = [
   '#E74C3C', '#E67E22', '#F1C40F', '#2ECC71', '#1ABC9C',
@@ -461,21 +468,16 @@ export default function DashboardPage() {
             {/* Edit Character */}
             <div className="md:col-span-2 card-dark">
               <h2 className="text-lg font-semibold text-gray-300 mb-4">Your Character</h2>
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-20 h-20 bg-gray-800 rounded-lg flex items-center justify-center overflow-hidden border-2 border-[#f7931a]">
-                  <img
-                    src={getCharacterFile(profile?.character || 'adventurer').replace('.glb', '.glb')}
-                    alt={getCharacterName(profile?.character || 'adventurer')}
-                    className="w-16 h-16 object-contain"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).parentElement!.innerHTML = '<span class="text-4xl">🧑</span>' }}
-                  />
+              <div className="flex items-center gap-6 mb-4">
+                <div className="border-2 border-[#f7931a] rounded-lg overflow-hidden shadow-lg shadow-[#f7931a]/20">
+                  <CharacterPreview characterId={profile?.character || 'adventurer'} size={120} />
                 </div>
                 <div>
-                  <p className="text-white font-semibold text-lg">{getCharacterName(profile?.character || 'adventurer')}</p>
-                  <p className="text-gray-500 text-xs">
+                  <p className="text-white font-semibold text-xl">{getCharacterName(profile?.character || 'adventurer')}</p>
+                  <p className="text-gray-500 text-sm mt-1">
                     {(profile?.character_changes || 0) >= 1
-                      ? 'Character change used (0 left)'
-                      : '1 change available'}
+                      ? 'Character change used (0 remaining)'
+                      : '1 free change available'}
                   </p>
                 </div>
               </div>
@@ -499,28 +501,28 @@ export default function DashboardPage() {
                           key={char.id}
                           onClick={() => handleChangeCharacter(char.id)}
                           disabled={savingCharacter || char.id === profile?.character}
-                          className={`relative p-3 rounded-lg border-2 transition-all hover:scale-105 ${
+                          className={`relative p-2 rounded-lg border-2 transition-all hover:scale-105 ${
                             char.id === profile?.character
                               ? 'border-[#f7931a] bg-[#f7931a]/10 opacity-50 cursor-not-allowed'
                               : 'border-gray-700 hover:border-[#f7931a] bg-gray-800/50'
                           }`}
                         >
-                          <div className="w-full aspect-square flex items-center justify-center text-3xl mb-1">
-                            🧑
+                          <div className="flex items-center justify-center mb-1">
+                            <CharacterThumbnailDynamic characterId={char.id} size={80} />
                           </div>
                           <p className="text-xs text-center text-gray-300 truncate">{char.name}</p>
                           {char.id === profile?.character && (
-                            <div className="absolute top-1 right-1 bg-[#f7931a] rounded-full w-4 h-4 flex items-center justify-center">
-                              <span className="text-[10px] text-black font-bold">✓</span>
+                            <div className="absolute top-1 right-1 bg-[#f7931a] rounded-full w-5 h-5 flex items-center justify-center">
+                              <span className="text-[11px] text-black font-bold">✓</span>
                             </div>
                           )}
                         </button>
                       ))}
                     </div>
-                    <div className="flex gap-2 mt-3">
+                    <div className="flex gap-2 mt-4">
                       <button
                         onClick={() => { setShowCharacterPicker(false); setCharacterError('') }}
-                        className="text-sm text-gray-500 hover:text-white"
+                        className="text-sm text-gray-500 hover:text-white transition-colors"
                       >
                         Cancel
                       </button>
