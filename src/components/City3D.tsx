@@ -711,6 +711,22 @@ function Character({ walking, running, moveSpeed = 0 }: { walking: boolean; runn
         const mesh = child as THREE.Mesh
         mesh.castShadow = true
         mesh.receiveShadow = true
+        // Brighten dark materials so character is visible in the dark city
+        if (mesh.material) {
+          const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
+          mats.forEach(mat => {
+            if (mat instanceof THREE.MeshStandardMaterial) {
+              // Add subtle emissive so character doesn't disappear in dark scene
+              const lum = mat.color.r * 0.299 + mat.color.g * 0.587 + mat.color.b * 0.114
+              if (lum < 0.1) {
+                mat.emissive = new THREE.Color(0x222222)
+                mat.emissiveIntensity = 0.3
+              }
+              // Boost metallic look
+              mat.metalness = Math.max(mat.metalness, 0.15)
+            }
+          })
+        }
       }
     })
     return clone
@@ -745,7 +761,7 @@ function Character({ walking, running, moveSpeed = 0 }: { walking: boolean; runn
   }, [actions])
 
   return (
-    <group ref={groupRef} scale={[0.42, 0.42, 0.42]}>
+    <group ref={groupRef} scale={[0.005, 0.005, 0.005]}>
       <primitive object={model} />
     </group>
   )
