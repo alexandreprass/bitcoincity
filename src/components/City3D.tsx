@@ -1008,7 +1008,7 @@ type NPCCarRoute = {
   color: string
 }
 
-function NPCCar({ route }: { route: NPCCarRoute }) {
+function NPCCar({ route, index, onClickCar, positionsRef }: { route: NPCCarRoute; index: number; onClickCar?: (idx: number) => void; positionsRef?: React.MutableRefObject<{ x: number; y: number; z: number; rot: number }[]> }) {
   const ref = useRef<THREE.Group>(null)
   const bannerRef = useRef<THREE.Mesh>(null)
   const angle = useRef(route.startAngle)
@@ -1024,13 +1024,16 @@ function NPCCar({ route }: { route: NPCCarRoute }) {
     const z = Math.sin(a) * route.radius
     ref.current.position.set(x, 0.15, z)
 
-    // Face tangent direction: car front is +Z local
-    // Tangent to circle at angle a: direction = (-sin(a), cos(a)) for CCW
-    // For CW it's (sin(a), -cos(a))
-    // Use atan2 to get the Y rotation the car needs
+    // Face tangent direction
     const tx = route.clockwise ? Math.sin(a) : -Math.sin(a)
     const tz = route.clockwise ? -Math.cos(a) : Math.cos(a)
-    ref.current.rotation.y = Math.atan2(tx, tz)
+    const rotY = Math.atan2(tx, tz)
+    ref.current.rotation.y = rotY
+
+    // Store position for camera follow
+    if (positionsRef?.current) {
+      positionsRef.current[index] = { x, y: 0.15, z, rot: rotY }
+    }
 
     // Rotate banner
     if (bannerRef.current) {
@@ -1039,7 +1042,7 @@ function NPCCar({ route }: { route: NPCCarRoute }) {
   })
 
   return (
-    <group ref={ref}>
+    <group ref={ref} onClick={(e) => { e.stopPropagation(); onClickCar?.(index) }}>
       {/* Ferrari body - low sleek */}
       <mesh position={[0, 0.08, 0]}>
         <boxGeometry args={[0.35, 0.1, 0.9]} />
@@ -1124,24 +1127,25 @@ function NPCCar({ route }: { route: NPCCarRoute }) {
   )
 }
 
-function NPCCars() {
+function NPCCars({ onClickCar, positionsRef }: { onClickCar?: (idx: number) => void; positionsRef?: React.MutableRefObject<{ x: number; y: number; z: number; rot: number }[]> }) {
   const routes = useMemo<NPCCarRoute[]>(() => {
     const ferrariColors = ['#FF2800', '#FFD700', '#000000', '#FFFFFF', '#1E90FF', '#FF4500']
     const arr: NPCCarRoute[] = []
-    // Cars on different ring roads
+    // Cars drive exactly on road ring radii: [8, 15, 22, 30, 40, 52]
     const rings = [
-      { radius: 14, count: 2, speed: 0.15 },
-      { radius: 27, count: 2, speed: 0.1 },
-      { radius: 35, count: 2, speed: 0.08 },
-      { radius: 43, count: 2, speed: 0.07 },
-      { radius: 52, count: 2, speed: 0.06 },
+      { radius: 8, count: 2, speed: 0.25 },
+      { radius: 15, count: 2, speed: 0.15 },
+      { radius: 22, count: 2, speed: 0.12 },
+      { radius: 30, count: 2, speed: 0.09 },
+      { radius: 40, count: 2, speed: 0.07 },
+      { radius: 52, count: 2, speed: 0.05 },
     ]
     let idx = 0
     for (const ring of rings) {
       for (let i = 0; i < ring.count; i++) {
         arr.push({
           radius: ring.radius,
-          speed: ring.speed + (Math.random() * 0.03 - 0.015),
+          speed: ring.speed + (Math.random() * 0.02 - 0.01),
           startAngle: (i / ring.count) * Math.PI * 2 + Math.random() * 0.3,
           clockwise: i % 2 === 0,
           color: ferrariColors[idx % ferrariColors.length],
@@ -1155,10 +1159,33 @@ function NPCCars() {
   return (
     <>
       {routes.map((route, i) => (
-        <NPCCar key={`npc-${i}`} route={route} />
+        <NPCCar key={`npc-${i}`} route={route} index={i} onClickCar={onClickCar} positionsRef={positionsRef} />
       ))}
     </>
   )
+}
+
+// ==================== NPC CAMERA FOLLOWER ====================
+
+function NPCCameraFollower({ positionsRef, followIndex }: { positionsRef: React.MutableRefObject<{ x: number; y: number; z: number; rot: number }[]>; followIndex: number }) {
+  const { camera } = useThree()
+
+  useFrame(() => {
+    const pos = positionsRef.current[followIndex]
+    if (!pos) return
+
+    // Camera behind and above the NPC car
+    const camDist = 5
+    const camHeight = 2.5
+    const behindX = pos.x - Math.sin(pos.rot) * camDist
+    const behindZ = pos.z - Math.cos(pos.rot) * camDist
+
+    const targetCamPos = new THREE.Vector3(behindX, camHeight, behindZ)
+    camera.position.lerp(targetCamPos, 0.06)
+    camera.lookAt(pos.x, 0.5, pos.z)
+  })
+
+  return null
 }
 
 // WarmCityLights removed for performance - ambient/directional lights provide enough warmth
@@ -1229,6 +1256,8 @@ export default function City3D({ buildings, drivingMode = false, driverName = ''
   const [onlineCount, setOnlineCount] = useState(0)
   const channelRef = useRef<any>(null)
   const myIdRef = useRef<string>(Math.random().toString(36).substring(2, 10))
+  const [followingNPC, setFollowingNPC] = useState<number | null>(null)
+  const npcPositionsRef = useRef<{ x: number; y: number; z: number; rot: number }[]>([])
 
   // Keep ghostCarsRef in sync
   useEffect(() => {
@@ -1297,6 +1326,29 @@ export default function City3D({ buildings, drivingMode = false, driverName = ''
     }
   }, [supabaseClient, drivingMode, driverName])
 
+  // NPC spectator mode
+  const handleNPCClick = useCallback((idx: number) => {
+    if (!drivingMode) {
+      setFollowingNPC(idx)
+      setSelectedBuilding(null)
+    }
+  }, [drivingMode])
+
+  // ESC to exit spectator mode
+  useEffect(() => {
+    if (followingNPC === null) return
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setFollowingNPC(null)
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [followingNPC])
+
+  // Exit spectator when entering driving mode
+  useEffect(() => {
+    if (drivingMode) setFollowingNPC(null)
+  }, [drivingMode])
+
   const handleBuildingClick = useCallback((b: BuildingType) => {
     setSelectedBuilding(b)
   }, [])
@@ -1334,11 +1386,25 @@ export default function City3D({ buildings, drivingMode = false, driverName = ''
         </div>
       )}
 
+      {/* Spectator mode UI */}
+      {followingNPC !== null && !drivingMode && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-20 bg-black/80 backdrop-blur-sm rounded-lg px-5 py-3 text-center">
+          <p className="text-sm text-[#f7931a] font-bold">🏎️ Spectating Ferrari #{followingNPC + 1}</p>
+          <p className="text-[10px] text-gray-400 mt-1">Click elsewhere or press ESC to exit</p>
+          <button
+            onClick={() => setFollowingNPC(null)}
+            className="mt-2 text-xs bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded"
+          >
+            Exit Spectator
+          </button>
+        </div>
+      )}
+
       <Canvas
         shadows
         camera={{ position: [25, 18, 25], fov: 55 }}
         style={{ background: 'linear-gradient(180deg, #2d1a0a 0%, #3d2210 40%, #2a1808 100%)' }}
-        onPointerMissed={() => setSelectedBuilding(null)}
+        onPointerMissed={() => { setSelectedBuilding(null); setFollowingNPC(null) }}
       >
         <ambientLight intensity={1.2} color="#ffddaa" />
         <directionalLight
@@ -1356,7 +1422,10 @@ export default function City3D({ buildings, drivingMode = false, driverName = ''
         <Ground />
         <Roads />
         <Streetlights />
-        <NPCCars />
+        <NPCCars onClickCar={handleNPCClick} positionsRef={npcPositionsRef} />
+        {followingNPC !== null && !drivingMode && (
+          <NPCCameraFollower positionsRef={npcPositionsRef} followIndex={followingNPC} />
+        )}
         <Guardrails />
 
         {buildings.map((b) => (
@@ -1366,7 +1435,7 @@ export default function City3D({ buildings, drivingMode = false, driverName = ''
         <Car active={drivingMode} driverName={driverName} ghostCarsRef={ghostCarsRef} onNitroUpdate={handleNitroUpdate} onPositionUpdate={handlePositionUpdate} />
         <GhostCars ghosts={ghostCars} myCarPos={myCarPosRef} />
 
-        {!drivingMode && (
+        {!drivingMode && followingNPC === null && (
           <OrbitControls
             enablePan={true}
             enableZoom={true}

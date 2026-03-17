@@ -104,14 +104,52 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to save wallet: ' + walletError.message }, { status: 500 })
     }
 
-    // Calculate position
+    // Calculate position (avoiding roads)
     const { count } = await supabase
       .from('buildings')
       .select('*', { count: 'exact', head: true })
 
-    const idx = count || 0
-    const angle = idx * 0.8
-    const radius = 3 + idx * 0.6
+    // Road ring radii and spoke config
+    const ROAD_RADII = [8, 15, 22, 30, 40, 52]
+    const ROAD_HALF_WIDTH = 1.2 // avoid ±1.2 around each ring road
+    const SPOKE_COUNT = 12
+    const SPOKE_HALF_WIDTH = 1.0 // avoid ±1.0 around each spoke
+
+    const isOnRoad = (r: number, a: number): boolean => {
+      // Check ring roads
+      for (const rr of ROAD_RADII) {
+        if (Math.abs(r - rr) < ROAD_HALF_WIDTH) return true
+      }
+      // Check radial spokes (only for r > 3)
+      if (r > 3) {
+        for (let s = 0; s < SPOKE_COUNT; s++) {
+          const spokeAngle = (s / SPOKE_COUNT) * Math.PI * 2
+          // Distance from point to spoke line at this angle
+          let angleDiff = Math.abs(a - spokeAngle) % (Math.PI * 2)
+          if (angleDiff > Math.PI) angleDiff = Math.PI * 2 - angleDiff
+          // Arc distance = angleDiff * radius
+          const arcDist = angleDiff * r
+          if (arcDist < SPOKE_HALF_WIDTH) return true
+        }
+      }
+      return false
+    }
+
+    // Spiral placement that skips road positions
+    let idx = count || 0
+    let spiralIdx = 0
+    let angle = 0
+    let radius = 0
+    // Walk the spiral until we find `idx+1` valid positions
+    let validCount = 0
+    while (validCount <= idx) {
+      angle = spiralIdx * 0.8
+      radius = 3 + spiralIdx * 0.6
+      if (!isOnRoad(radius, angle % (Math.PI * 2))) {
+        validCount++
+      }
+      if (validCount <= idx) spiralIdx++
+    }
 
     // Set verification deadline for 1+ BTC holders (7 days from now)
     const btcAmount = satoshisToBtc(satoshis)
