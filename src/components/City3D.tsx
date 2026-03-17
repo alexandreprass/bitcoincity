@@ -675,193 +675,296 @@ function Character({ walking, running, moveSpeed = 0 }: { walking: boolean; runn
     }
   })
 
-  // Trump-inspired colors
-  const skinColor = '#f0c090'
-  const suitColor = '#1a1a3a' // dark navy suit
-  const pantsColor = '#1a1a3a'
-  const tieColor = '#cc2222' // red tie
-  const hairColor = '#e8b830' // iconic blonde
-  const shoeColor = '#1a1a1a'
-  const shirtColor = '#f0f0f0' // white shirt
+  // Bobblehead Trump colors
+  const skinColor = '#e8b490'
+  const skinDark = '#d4a080' // cheeks/chin shadow
+  const suitColor = '#1a1a2e' // dark navy/black suit
+  const pantsColor = '#1a1a2e'
+  const tieColor = '#cc1111' // bright red tie
+  const hairColor = '#f0d060' // light blonde
+  const hairDark = '#d4b840' // hair shadow
+  const shoeColor = '#111'
+  const shirtColor = '#f5f5f5' // white shirt
 
+  // Bobblehead proportions: huge head, small stubby body
   return (
-    <group ref={groupRef} scale={[0.55, 0.55, 0.55]}>
-      {/* Head - rounder, slightly wider */}
-      <mesh position={[0, 1.58, 0]}>
-        <sphereGeometry args={[0.16, 20, 16]} />
+    <group ref={groupRef} scale={[0.5, 0.5, 0.5]}>
+
+      {/* ========== GIANT HEAD ========== */}
+      <group position={[0, 1.55, 0]}>
+        {/* Main head - very large, slightly wide */}
+        <mesh position={[0, 0, 0]} scale={[1.1, 1.0, 1.0]}>
+          <sphereGeometry args={[0.28, 24, 20]} />
+          <meshStandardMaterial color={skinColor} />
+        </mesh>
+        {/* Forehead bump - makes face look bigger at top */}
+        <mesh position={[0, 0.08, 0.08]}>
+          <sphereGeometry args={[0.22, 16, 12]} />
+          <meshStandardMaterial color={skinColor} />
+        </mesh>
+        {/* Cheeks - round, puffy */}
+        <mesh position={[-0.12, -0.04, 0.15]}>
+          <sphereGeometry args={[0.1, 12, 10]} />
+          <meshStandardMaterial color={skinDark} />
+        </mesh>
+        <mesh position={[0.12, -0.04, 0.15]}>
+          <sphereGeometry args={[0.1, 12, 10]} />
+          <meshStandardMaterial color={skinDark} />
+        </mesh>
+        {/* Chin - prominent double chin */}
+        <mesh position={[0, -0.2, 0.1]}>
+          <sphereGeometry args={[0.12, 12, 10]} />
+          <meshStandardMaterial color={skinDark} />
+        </mesh>
+        <mesh position={[0, -0.26, 0.06]}>
+          <sphereGeometry args={[0.09, 10, 8]} />
+          <meshStandardMaterial color={skinDark} />
+        </mesh>
+
+        {/* ---- HAIR: voluminous blonde swept to the right ---- */}
+        {/* Main hair volume on top */}
+        <mesh position={[0.02, 0.2, -0.02]} scale={[1.15, 0.7, 1.0]}>
+          <sphereGeometry args={[0.26, 20, 14]} />
+          <meshStandardMaterial color={hairColor} />
+        </mesh>
+        {/* Hair swoop front-right (signature sweep) */}
+        <mesh position={[0.1, 0.18, 0.1]} scale={[1.0, 0.5, 0.8]}>
+          <sphereGeometry args={[0.18, 14, 10]} />
+          <meshStandardMaterial color={hairColor} />
+        </mesh>
+        {/* Hair front left - slight volume */}
+        <mesh position={[-0.08, 0.16, 0.1]} scale={[0.8, 0.45, 0.7]}>
+          <sphereGeometry args={[0.15, 12, 8]} />
+          <meshStandardMaterial color={hairColor} />
+        </mesh>
+        {/* Hair sides */}
+        <mesh position={[-0.22, 0.02, -0.04]} scale={[0.6, 0.7, 0.8]}>
+          <sphereGeometry args={[0.1, 10, 8]} />
+          <meshStandardMaterial color={hairDark} />
+        </mesh>
+        <mesh position={[0.22, 0.02, -0.04]} scale={[0.6, 0.7, 0.8]}>
+          <sphereGeometry args={[0.1, 10, 8]} />
+          <meshStandardMaterial color={hairDark} />
+        </mesh>
+        {/* Hair back */}
+        <mesh position={[0, 0.06, -0.2]} scale={[1.0, 0.8, 0.6]}>
+          <sphereGeometry args={[0.2, 12, 10]} />
+          <meshStandardMaterial color={hairDark} />
+        </mesh>
+
+        {/* ---- FACE FEATURES ---- */}
+        {/* Eyes - small squinty (signature look) */}
+        <mesh position={[-0.08, 0.02, 0.24]}>
+          <sphereGeometry args={[0.03, 12, 10]} />
+          <meshStandardMaterial color="white" />
+        </mesh>
+        <mesh position={[0.08, 0.02, 0.24]}>
+          <sphereGeometry args={[0.03, 12, 10]} />
+          <meshStandardMaterial color="white" />
+        </mesh>
+        {/* Pupils - small blue */}
+        <mesh position={[-0.08, 0.02, 0.268]}>
+          <sphereGeometry args={[0.016, 10, 8]} />
+          <meshStandardMaterial color="#4477bb" />
+        </mesh>
+        <mesh position={[0.08, 0.02, 0.268]}>
+          <sphereGeometry args={[0.016, 10, 8]} />
+          <meshStandardMaterial color="#4477bb" />
+        </mesh>
+        {/* Eyelids - heavy, squinting */}
+        <mesh position={[-0.08, 0.045, 0.245]} scale={[1.3, 0.4, 0.5]}>
+          <sphereGeometry args={[0.03, 10, 6]} />
+          <meshStandardMaterial color={skinColor} />
+        </mesh>
+        <mesh position={[0.08, 0.045, 0.245]} scale={[1.3, 0.4, 0.5]}>
+          <sphereGeometry args={[0.03, 10, 6]} />
+          <meshStandardMaterial color={skinColor} />
+        </mesh>
+        {/* Eyebrows - light blonde, thick */}
+        <mesh position={[-0.08, 0.075, 0.22]} rotation={[0.2, 0, -0.15]} scale={[1.0, 0.5, 0.5]}>
+          <capsuleGeometry args={[0.012, 0.05, 4, 8]} />
+          <meshStandardMaterial color={hairDark} />
+        </mesh>
+        <mesh position={[0.08, 0.075, 0.22]} rotation={[0.2, 0, 0.15]} scale={[1.0, 0.5, 0.5]}>
+          <capsuleGeometry args={[0.012, 0.05, 4, 8]} />
+          <meshStandardMaterial color={hairDark} />
+        </mesh>
+        {/* Nose - prominent */}
+        <mesh position={[0, -0.04, 0.26]}>
+          <sphereGeometry args={[0.04, 12, 10]} />
+          <meshStandardMaterial color={skinDark} />
+        </mesh>
+        <mesh position={[0, -0.02, 0.24]}>
+          <capsuleGeometry args={[0.02, 0.04, 6, 8]} />
+          <meshStandardMaterial color={skinColor} />
+        </mesh>
+        {/* Mouth - signature smirk/pout */}
+        <mesh position={[0, -0.11, 0.22]} scale={[1.2, 0.6, 0.5]}>
+          <capsuleGeometry args={[0.02, 0.04, 4, 8]} />
+          <meshStandardMaterial color="#cc8877" />
+        </mesh>
+        {/* Lower lip */}
+        <mesh position={[0, -0.13, 0.21]} scale={[1.0, 0.5, 0.4]}>
+          <capsuleGeometry args={[0.018, 0.03, 4, 8]} />
+          <meshStandardMaterial color="#bb7766" />
+        </mesh>
+        {/* Ears */}
+        <mesh position={[-0.27, -0.02, 0]}>
+          <sphereGeometry args={[0.04, 10, 8]} />
+          <meshStandardMaterial color={skinDark} />
+        </mesh>
+        <mesh position={[0.27, -0.02, 0]}>
+          <sphereGeometry args={[0.04, 10, 8]} />
+          <meshStandardMaterial color={skinDark} />
+        </mesh>
+        {/* Neck wrinkles / jaw line */}
+        <mesh position={[0, -0.28, 0.02]}>
+          <cylinderGeometry args={[0.1, 0.08, 0.06, 12]} />
+          <meshStandardMaterial color={skinDark} />
+        </mesh>
+      </group>
+
+      {/* ========== SMALL STUBBY BODY ========== */}
+      {/* Neck */}
+      <mesh position={[0, 1.22, 0]}>
+        <cylinderGeometry args={[0.08, 0.1, 0.1, 12]} />
         <meshStandardMaterial color={skinColor} />
       </mesh>
-      {/* Hair - blonde swept back, voluminous top */}
-      <mesh position={[0, 1.72, -0.03]}>
-        <sphereGeometry args={[0.155, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.55]} />
-        <meshStandardMaterial color={hairColor} />
+
+      {/* Suit jacket - torso (wide, short) */}
+      <mesh position={[0, 1.0, 0]}>
+        <capsuleGeometry args={[0.16, 0.22, 8, 16]} />
+        <meshStandardMaterial color={suitColor} roughness={0.6} />
       </mesh>
-      {/* Hair front swoop */}
-      <mesh position={[0, 1.7, 0.06]}>
-        <sphereGeometry args={[0.12, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.4]} />
-        <meshStandardMaterial color={hairColor} />
-      </mesh>
-      {/* Hair sides - swept back look */}
-      <mesh position={[-0.13, 1.62, -0.05]}>
-        <sphereGeometry args={[0.06, 10, 8]} />
-        <meshStandardMaterial color={hairColor} />
-      </mesh>
-      <mesh position={[0.13, 1.62, -0.05]}>
-        <sphereGeometry args={[0.06, 10, 8]} />
-        <meshStandardMaterial color={hairColor} />
-      </mesh>
-      {/* Hair back */}
-      <mesh position={[0, 1.6, -0.12]}>
-        <sphereGeometry args={[0.12, 10, 8]} />
-        <meshStandardMaterial color={hairColor} />
-      </mesh>
-      {/* Eyes - white */}
-      <mesh position={[-0.055, 1.6, 0.13]}>
-        <sphereGeometry args={[0.025, 12, 10]} />
-        <meshStandardMaterial color="white" />
-      </mesh>
-      <mesh position={[0.055, 1.6, 0.13]}>
-        <sphereGeometry args={[0.025, 12, 10]} />
-        <meshStandardMaterial color="white" />
-      </mesh>
-      {/* Pupils - blue */}
-      <mesh position={[-0.055, 1.6, 0.152]}>
-        <sphereGeometry args={[0.013, 10, 8]} />
-        <meshStandardMaterial color="#3366aa" />
-      </mesh>
-      <mesh position={[0.055, 1.6, 0.152]}>
-        <sphereGeometry args={[0.013, 10, 8]} />
-        <meshStandardMaterial color="#3366aa" />
-      </mesh>
-      {/* Eyebrows - blonde, slightly furrowed */}
-      <mesh position={[-0.055, 1.635, 0.135]} rotation={[0.15, 0, -0.1]}>
-        <capsuleGeometry args={[0.008, 0.04, 4, 8]} />
-        <meshStandardMaterial color="#c09828" />
-      </mesh>
-      <mesh position={[0.055, 1.635, 0.135]} rotation={[0.15, 0, 0.1]}>
-        <capsuleGeometry args={[0.008, 0.04, 4, 8]} />
-        <meshStandardMaterial color="#c09828" />
-      </mesh>
-      {/* Nose */}
-      <mesh position={[0, 1.55, 0.15]}>
-        <sphereGeometry args={[0.025, 10, 8]} />
-        <meshStandardMaterial color={skinColor} />
-      </mesh>
-      {/* Mouth - slight pout */}
-      <mesh position={[0, 1.5, 0.14]}>
-        <capsuleGeometry args={[0.012, 0.03, 4, 8]} />
-        <meshStandardMaterial color="#cc8877" />
-      </mesh>
-      {/* Chin - slightly prominent */}
-      <mesh position={[0, 1.44, 0.08]}>
-        <sphereGeometry args={[0.06, 10, 8]} />
-        <meshStandardMaterial color={skinColor} />
-      </mesh>
-      {/* Ears */}
-      <mesh position={[-0.16, 1.57, 0]}>
-        <sphereGeometry args={[0.03, 8, 8]} />
-        <meshStandardMaterial color={skinColor} />
-      </mesh>
-      <mesh position={[0.16, 1.57, 0]}>
-        <sphereGeometry args={[0.03, 8, 8]} />
-        <meshStandardMaterial color={skinColor} />
-      </mesh>
-      {/* Neck - thicker */}
-      <mesh position={[0, 1.37, 0]}>
-        <cylinderGeometry args={[0.06, 0.07, 0.08, 12]} />
-        <meshStandardMaterial color={skinColor} />
-      </mesh>
-      {/* Torso - suit jacket, rounded */}
-      <mesh position={[0, 1.13, 0]}>
-        <capsuleGeometry args={[0.12, 0.28, 8, 12]} />
+      {/* Jacket shoulders - wider */}
+      <mesh position={[-0.14, 1.12, 0]} scale={[1.2, 0.8, 1.0]}>
+        <sphereGeometry args={[0.07, 10, 8]} />
         <meshStandardMaterial color={suitColor} />
       </mesh>
-      {/* Suit lapels */}
-      <mesh position={[-0.06, 1.25, 0.1]}>
-        <capsuleGeometry args={[0.015, 0.08, 4, 6]} />
-        <meshStandardMaterial color={suitColor} roughness={0.3} metalness={0.1} />
+      <mesh position={[0.14, 1.12, 0]} scale={[1.2, 0.8, 1.0]}>
+        <sphereGeometry args={[0.07, 10, 8]} />
+        <meshStandardMaterial color={suitColor} />
       </mesh>
-      <mesh position={[0.06, 1.25, 0.1]}>
-        <capsuleGeometry args={[0.015, 0.08, 4, 6]} />
-        <meshStandardMaterial color={suitColor} roughness={0.3} metalness={0.1} />
-      </mesh>
-      {/* White shirt collar */}
-      <mesh position={[0, 1.32, 0.06]}>
-        <capsuleGeometry args={[0.025, 0.04, 4, 8]} />
+
+      {/* White shirt V (visible under jacket) */}
+      <mesh position={[0, 1.1, 0.12]}>
+        <capsuleGeometry args={[0.06, 0.12, 4, 8]} />
         <meshStandardMaterial color={shirtColor} />
       </mesh>
-      {/* Red tie */}
-      <mesh position={[0, 1.18, 0.11]}>
-        <capsuleGeometry args={[0.018, 0.18, 4, 6]} />
+      {/* Shirt collar */}
+      <mesh position={[-0.04, 1.17, 0.1]} rotation={[0, 0, 0.3]}>
+        <capsuleGeometry args={[0.015, 0.04, 4, 6]} />
+        <meshStandardMaterial color={shirtColor} />
+      </mesh>
+      <mesh position={[0.04, 1.17, 0.1]} rotation={[0, 0, -0.3]}>
+        <capsuleGeometry args={[0.015, 0.04, 4, 6]} />
+        <meshStandardMaterial color={shirtColor} />
+      </mesh>
+
+      {/* RED TIE - long, prominent */}
+      <mesh position={[0, 1.15, 0.14]}>
+        <sphereGeometry args={[0.025, 8, 6]} />
         <meshStandardMaterial color={tieColor} />
       </mesh>
-      {/* Tie knot */}
-      <mesh position={[0, 1.29, 0.1]}>
-        <sphereGeometry args={[0.022, 8, 6]} />
+      <mesh position={[0, 1.02, 0.15]}>
+        <capsuleGeometry args={[0.025, 0.2, 4, 8]} />
         <meshStandardMaterial color={tieColor} />
       </mesh>
+      {/* Tie point at bottom */}
+      <mesh position={[0, 0.88, 0.15]} scale={[1, 1.2, 0.5]}>
+        <coneGeometry args={[0.03, 0.06, 6]} />
+        <meshStandardMaterial color={tieColor} />
+      </mesh>
+
       {/* Left arm */}
-      <group ref={leftArmRef} position={[-0.17, 1.25, 0]}>
+      <group ref={leftArmRef} position={[-0.22, 1.1, 0]}>
         {/* Upper arm */}
         <mesh position={[0, -0.1, 0]}>
-          <capsuleGeometry args={[0.04, 0.14, 6, 8]} />
+          <capsuleGeometry args={[0.05, 0.12, 6, 10]} />
           <meshStandardMaterial color={suitColor} />
         </mesh>
-        {/* Lower arm */}
-        <mesh position={[0, -0.25, 0]}>
-          <capsuleGeometry args={[0.035, 0.1, 6, 8]} />
+        {/* Lower arm / cuff */}
+        <mesh position={[0, -0.24, 0]}>
+          <capsuleGeometry args={[0.04, 0.1, 6, 8]} />
           <meshStandardMaterial color={suitColor} />
         </mesh>
-        {/* Hand */}
-        <mesh position={[0, -0.34, 0]}>
-          <sphereGeometry args={[0.035, 10, 8]} />
+        {/* Shirt cuff */}
+        <mesh position={[0, -0.3, 0]}>
+          <cylinderGeometry args={[0.035, 0.04, 0.03, 8]} />
+          <meshStandardMaterial color={shirtColor} />
+        </mesh>
+        {/* Hand - open, palm out */}
+        <mesh position={[0, -0.35, 0.01]}>
+          <sphereGeometry args={[0.04, 12, 10]} />
+          <meshStandardMaterial color={skinColor} />
+        </mesh>
+        {/* Fingers spread */}
+        <mesh position={[-0.02, -0.38, 0.03]} rotation={[0.3, 0, -0.2]}>
+          <capsuleGeometry args={[0.008, 0.03, 4, 6]} />
+          <meshStandardMaterial color={skinColor} />
+        </mesh>
+        <mesh position={[0.02, -0.38, 0.03]} rotation={[0.3, 0, 0.2]}>
+          <capsuleGeometry args={[0.008, 0.03, 4, 6]} />
           <meshStandardMaterial color={skinColor} />
         </mesh>
       </group>
       {/* Right arm */}
-      <group ref={rightArmRef} position={[0.17, 1.25, 0]}>
+      <group ref={rightArmRef} position={[0.22, 1.1, 0]}>
         <mesh position={[0, -0.1, 0]}>
-          <capsuleGeometry args={[0.04, 0.14, 6, 8]} />
+          <capsuleGeometry args={[0.05, 0.12, 6, 10]} />
           <meshStandardMaterial color={suitColor} />
         </mesh>
-        <mesh position={[0, -0.25, 0]}>
-          <capsuleGeometry args={[0.035, 0.1, 6, 8]} />
+        <mesh position={[0, -0.24, 0]}>
+          <capsuleGeometry args={[0.04, 0.1, 6, 8]} />
           <meshStandardMaterial color={suitColor} />
         </mesh>
-        <mesh position={[0, -0.34, 0]}>
-          <sphereGeometry args={[0.035, 10, 8]} />
+        <mesh position={[0, -0.3, 0]}>
+          <cylinderGeometry args={[0.035, 0.04, 0.03, 8]} />
+          <meshStandardMaterial color={shirtColor} />
+        </mesh>
+        <mesh position={[0, -0.35, 0.01]}>
+          <sphereGeometry args={[0.04, 12, 10]} />
+          <meshStandardMaterial color={skinColor} />
+        </mesh>
+        <mesh position={[-0.02, -0.38, 0.03]} rotation={[0.3, 0, -0.2]}>
+          <capsuleGeometry args={[0.008, 0.03, 4, 6]} />
+          <meshStandardMaterial color={skinColor} />
+        </mesh>
+        <mesh position={[0.02, -0.38, 0.03]} rotation={[0.3, 0, 0.2]}>
+          <capsuleGeometry args={[0.008, 0.03, 4, 6]} />
           <meshStandardMaterial color={skinColor} />
         </mesh>
       </group>
-      {/* Left leg */}
-      <group ref={leftLegRef} position={[-0.065, 0.88, 0]}>
-        <mesh position={[0, -0.15, 0]}>
-          <capsuleGeometry args={[0.045, 0.18, 6, 8]} />
+
+      {/* Left leg - short stubby */}
+      <group ref={leftLegRef} position={[-0.07, 0.82, 0]}>
+        <mesh position={[0, -0.1, 0]}>
+          <capsuleGeometry args={[0.055, 0.14, 6, 10]} />
           <meshStandardMaterial color={pantsColor} />
         </mesh>
-        <mesh position={[0, -0.32, 0]}>
-          <capsuleGeometry args={[0.04, 0.12, 6, 8]} />
+        <mesh position={[0, -0.24, 0]}>
+          <capsuleGeometry args={[0.05, 0.08, 6, 8]} />
           <meshStandardMaterial color={pantsColor} />
         </mesh>
-        {/* Shoe */}
-        <mesh position={[0, -0.42, 0.02]}>
-          <capsuleGeometry args={[0.035, 0.06, 4, 8]} />
-          <meshStandardMaterial color={shoeColor} />
+        {/* Shoe - chunky black */}
+        <mesh position={[0, -0.33, 0.02]}>
+          <capsuleGeometry args={[0.045, 0.05, 4, 8]} />
+          <meshStandardMaterial color={shoeColor} roughness={0.3} />
         </mesh>
       </group>
       {/* Right leg */}
-      <group ref={rightLegRef} position={[0.065, 0.88, 0]}>
-        <mesh position={[0, -0.15, 0]}>
-          <capsuleGeometry args={[0.045, 0.18, 6, 8]} />
+      <group ref={rightLegRef} position={[0.07, 0.82, 0]}>
+        <mesh position={[0, -0.1, 0]}>
+          <capsuleGeometry args={[0.055, 0.14, 6, 10]} />
           <meshStandardMaterial color={pantsColor} />
         </mesh>
-        <mesh position={[0, -0.32, 0]}>
-          <capsuleGeometry args={[0.04, 0.12, 6, 8]} />
+        <mesh position={[0, -0.24, 0]}>
+          <capsuleGeometry args={[0.05, 0.08, 6, 8]} />
           <meshStandardMaterial color={pantsColor} />
         </mesh>
-        <mesh position={[0, -0.42, 0.02]}>
-          <capsuleGeometry args={[0.035, 0.06, 4, 8]} />
-          <meshStandardMaterial color={shoeColor} />
+        <mesh position={[0, -0.33, 0.02]}>
+          <capsuleGeometry args={[0.045, 0.05, 4, 8]} />
+          <meshStandardMaterial color={shoeColor} roughness={0.3} />
         </mesh>
       </group>
     </group>
