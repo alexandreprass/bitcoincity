@@ -847,11 +847,17 @@ function Car({ active, driverName, ghostCarsRef, onNitroUpdate, onPositionUpdate
     carRef.current.position.set(newX, newY, newZ)
     carRef.current.rotation.y = rotRef.current
 
-    // Tilt based on movement
-    const tiltZ = -speed.current * 2 // nose down when accelerating
-    const tiltX = verticalSpeed.current * 3 // tilt on altitude change
-    carRef.current.rotation.x = tiltZ * 0.3
-    carRef.current.rotation.z = 0
+    // Airplane-style tilt
+    // Pitch: nose down when accelerating, nose up when reversing/climbing
+    const pitchFromSpeed = -speed.current * 1.5 // forward = nose dips
+    const pitchFromVertical = -verticalSpeed.current * 4 // climbing = nose up, descending = nose down
+    carRef.current.rotation.x = pitchFromSpeed + pitchFromVertical
+
+    // Roll: bank when steering (check current steer input)
+    const steerInput = (k.has('a') || k.has('arrowleft') ? 1 : 0) - (k.has('d') || k.has('arrowright') ? 1 : 0)
+    const touchSteer = touchActive.current ? -touchSteerAmount.current : 0
+    const targetRoll = (steerInput + touchSteer) * 0.4
+    carRef.current.rotation.z += (targetRoll - carRef.current.rotation.z) * 0.1 // smooth lerp
 
     // Camera follows behind and above
     const camDist = nitroActive.current ? 7 : 5
@@ -1034,8 +1040,8 @@ function FlyingCar({ config, index, onClickCar, positionsRef }: { config: Flying
   // Pick a new random target within the city
   const pickTarget = useCallback(() => {
     const angle = Math.random() * Math.PI * 2
-    const r = 5 + Math.random() * 45
-    const h = 3 + Math.random() * 12 // fly between 3 and 15 height
+    const r = 5 + Math.random() * 75 // full city radius
+    const h = 3 + Math.random() * 15 // fly between 3 and 18 height
     target.current.set(Math.cos(angle) * r, h, Math.sin(angle) * r)
   }, [])
 
@@ -1075,9 +1081,10 @@ function FlyingCar({ config, index, onClickCar, positionsRef }: { config: Flying
     rotY.current += rotDiff * 0.04
     ref.current.rotation.y = rotY.current
 
-    // Slight tilt in movement direction
-    ref.current.rotation.z = -rotDiff * 0.3
-    ref.current.rotation.x = Math.min(0.15, dist * 0.01) * 0.3
+    // Airplane-style tilt for NPCs
+    ref.current.rotation.z = -rotDiff * 0.5 // bank when turning
+    const vertDir = target.current.y - pos.current.y
+    ref.current.rotation.x = Math.max(-0.3, Math.min(0.3, -vertDir * 0.05 + (dist > 2 ? 0.08 : 0))) // pitch based on climb/dive
 
     // Store position for camera follow
     if (positionsRef?.current) {
@@ -1184,7 +1191,7 @@ function NPCCars({ onClickCar, positionsRef }: { onClickCar?: (idx: number) => v
     const arr: FlyingCarConfig[] = []
     for (let i = 0; i < 10; i++) {
       const angle = Math.random() * Math.PI * 2
-      const r = 10 + Math.random() * 35
+      const r = 5 + Math.random() * 75 // spread across entire city
       arr.push({
         speed: 1.5 + Math.random() * 2.5, // 1.5-4 units/sec (slow cruising)
         flyHeight: 3 + Math.random() * 10, // 3-13 height
