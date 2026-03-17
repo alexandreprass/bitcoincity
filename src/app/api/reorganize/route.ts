@@ -64,11 +64,10 @@ export async function POST() {
   const supabase = createServerSupabase(url, serviceKey)
 
   try {
-    // Fetch all buildings sorted by admin first, then balance (biggest first = closest to center)
+    // Fetch all buildings
     const { data: buildings, error } = await supabase
       .from('buildings')
-      .select('id, balance_satoshis, is_admin')
-      .order('is_admin', { ascending: false })
+      .select('*')
       .order('balance_satoshis', { ascending: false })
 
     if (error) {
@@ -79,8 +78,15 @@ export async function POST() {
       return NextResponse.json({ success: true, reorganized: 0 })
     }
 
-    // Reassign positions: biggest buildings closest to center
-    const updates = buildings.map((b, idx) => {
+    // Sort: admin first, then by balance (biggest closest to center)
+    buildings.sort((a: any, b: any) => {
+      if (a.is_admin && !b.is_admin) return -1
+      if (!a.is_admin && b.is_admin) return 1
+      return (b.balance_satoshis || 0) - (a.balance_satoshis || 0)
+    })
+
+    // Reassign positions: admin/biggest buildings closest to center
+    const updates = buildings.map((b: any, idx: number) => {
       const pos = getValidRingPosition(idx)
       return supabase
         .from('buildings')

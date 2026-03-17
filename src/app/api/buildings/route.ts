@@ -19,8 +19,7 @@ export async function GET() {
 
   const { data: buildings, error } = await supabase
     .from('buildings')
-    .select('id, user_id, username, display_name, btc_address, balance_satoshis, height, position_x, position_z, color, verified, message, verification_deadline, is_admin, created_at')
-    .order('is_admin', { ascending: false })
+    .select('*')
     .order('balance_satoshis', { ascending: false })
 
   if (error) {
@@ -36,6 +35,13 @@ export async function GET() {
       if (deadline < now) return false
     }
     return true
+  })
+
+  // Sort admin building first (if is_admin column exists)
+  filtered.sort((a: any, b: any) => {
+    if (a.is_admin && !b.is_admin) return -1
+    if (!a.is_admin && b.is_admin) return 1
+    return (b.balance_satoshis || 0) - (a.balance_satoshis || 0)
   })
 
   return NextResponse.json(
