@@ -36,6 +36,22 @@ function getTierStyle(tier: number) {
   return styles[tier] || styles[1]
 }
 
+// ==================== TIERED CAR STYLES ====================
+
+function getTierCarStyle(tier: number) {
+  const styles: Record<number, { body: string; cabin: string; accent: string; name: string }> = {
+    1: { body: '#8B7355', cabin: '#555', accent: '#aa9966', name: 'Rusty Buggy' },
+    2: { body: '#B87333', cabin: '#444', accent: '#cc9955', name: 'Copper Cruiser' },
+    3: { body: '#2E8B57', cabin: '#333', accent: '#3CB371', name: 'Emerald Runner' },
+    4: { body: '#4169E1', cabin: '#222', accent: '#5B8DEF', name: 'Blue Streak' },
+    5: { body: '#1E90FF', cabin: '#1a1a2a', accent: '#00BFFF', name: 'Plasma Jet' },
+    6: { body: '#6A0DAD', cabin: '#111', accent: '#9B30FF', name: 'Neon Phantom' },
+    7: { body: '#C0C0C0', cabin: '#0a0a0a', accent: '#E8E8E8', name: 'Chrome Falcon' },
+    8: { body: '#FFD700', cabin: '#111', accent: '#FFA500', name: 'Golden Phoenix' },
+  }
+  return styles[tier] || styles[1]
+}
+
 // ==================== VERIFIED AURA (Golden Treasure) ====================
 
 function GoldenSparkles({ height }: { height: number }) {
@@ -535,6 +551,343 @@ function NitroFlame({ active }: { active: boolean }) {
   )
 }
 
+// ==================== TIERED CAR BODY ====================
+
+function TieredCarBody({ tier }: { tier: number }) {
+  const style = getTierCarStyle(tier)
+  const scale = 0.9 + tier * 0.05 // slightly bigger for higher tiers
+
+  return (
+    <group scale={[scale, scale, scale]}>
+      {/* Main body */}
+      <mesh position={[0, 0, 0]}>
+        <boxGeometry args={[0.45, 0.14, 0.9]} />
+        <meshStandardMaterial color={style.body} metalness={tier >= 5 ? 0.9 : 0.6} roughness={tier >= 5 ? 0.1 : 0.3} />
+      </mesh>
+      {/* Hood - sleeker for higher tiers */}
+      <mesh position={[0, 0.02, 0.35]}>
+        <boxGeometry args={[tier >= 5 ? 0.38 : 0.4, 0.08, tier >= 5 ? 0.3 : 0.25]} />
+        <meshStandardMaterial color={style.body} metalness={tier >= 5 ? 0.9 : 0.6} roughness={0.2} />
+      </mesh>
+      {/* Cabin */}
+      <mesh position={[0, 0.12, -0.05]}>
+        <boxGeometry args={[tier >= 6 ? 0.34 : 0.38, 0.12, 0.35]} />
+        <meshStandardMaterial color={style.cabin} metalness={0.9} roughness={0.1} />
+      </mesh>
+      {/* Spoiler for tier 5+ */}
+      {tier >= 5 && (
+        <mesh position={[0, 0.16, -0.4]}>
+          <boxGeometry args={[0.42, 0.02, 0.12]} />
+          <meshStandardMaterial color={style.accent} metalness={0.8} />
+        </mesh>
+      )}
+      {/* Side skirts for tier 4+ */}
+      {tier >= 4 && (
+        <>
+          <mesh position={[-0.24, -0.04, 0]}>
+            <boxGeometry args={[0.03, 0.06, 0.7]} />
+            <meshStandardMaterial color={style.accent} metalness={0.7} />
+          </mesh>
+          <mesh position={[0.24, -0.04, 0]}>
+            <boxGeometry args={[0.03, 0.06, 0.7]} />
+            <meshStandardMaterial color={style.accent} metalness={0.7} />
+          </mesh>
+        </>
+      )}
+      {/* Accent stripe for tier 3+ */}
+      {tier >= 3 && (
+        <mesh position={[0, 0.08, 0]}>
+          <boxGeometry args={[0.46, 0.01, 0.92]} />
+          <meshStandardMaterial color={style.accent} emissive={style.accent} emissiveIntensity={0.3} />
+        </mesh>
+      )}
+      {/* Wheels with jets */}
+      {([[-0.24, -0.12, 0.3], [0.24, -0.12, 0.3], [-0.24, -0.12, -0.3], [0.24, -0.12, -0.3]] as [number, number, number][]).map((wpos, i) => (
+        <group key={i} position={wpos}>
+          <mesh rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.055, 0.055, 0.04]} />
+            <meshStandardMaterial color="#222" metalness={0.6} />
+          </mesh>
+          <mesh position={[0, -0.08, 0]}>
+            <coneGeometry args={[0.04, 0.15, 8]} />
+            <meshStandardMaterial color={tier >= 6 ? '#ff4400' : '#0088ff'} emissive={tier >= 6 ? '#ff2200' : '#0066ff'} emissiveIntensity={2} transparent opacity={0.7} />
+          </mesh>
+        </group>
+      ))}
+      <pointLight position={[0, -0.2, 0]} intensity={1.0} distance={3} color={tier >= 6 ? '#ff4422' : '#4488ff'} />
+      {/* Headlights */}
+      <mesh position={[-0.13, 0, 0.46]}>
+        <sphereGeometry args={[0.03]} />
+        <meshStandardMaterial emissive={tier >= 7 ? '#ffdd00' : 'white'} emissiveIntensity={2} />
+      </mesh>
+      <mesh position={[0.13, 0, 0.46]}>
+        <sphereGeometry args={[0.03]} />
+        <meshStandardMaterial emissive={tier >= 7 ? '#ffdd00' : 'white'} emissiveIntensity={2} />
+      </mesh>
+      {/* Taillights */}
+      <mesh position={[-0.16, 0, -0.46]}>
+        <sphereGeometry args={[0.025]} />
+        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={1.5} />
+      </mesh>
+      <mesh position={[0.16, 0, -0.46]}>
+        <sphereGeometry args={[0.025]} />
+        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={1.5} />
+      </mesh>
+      {/* Tier 8 golden glow */}
+      {tier >= 8 && (
+        <pointLight position={[0, 0.3, 0]} intensity={1.5} distance={4} color="#FFD700" />
+      )}
+    </group>
+  )
+}
+
+// ==================== WALKING CHARACTER ====================
+
+function Character({ walking, running }: { walking: boolean; running: boolean }) {
+  const groupRef = useRef<THREE.Group>(null)
+  const leftArmRef = useRef<THREE.Group>(null)
+  const rightArmRef = useRef<THREE.Group>(null)
+  const leftLegRef = useRef<THREE.Group>(null)
+  const rightLegRef = useRef<THREE.Group>(null)
+
+  useFrame((state) => {
+    if (!walking && !running) {
+      // Idle pose
+      if (leftArmRef.current) leftArmRef.current.rotation.x = 0
+      if (rightArmRef.current) rightArmRef.current.rotation.x = 0
+      if (leftLegRef.current) leftLegRef.current.rotation.x = 0
+      if (rightLegRef.current) rightLegRef.current.rotation.x = 0
+      return
+    }
+    const speed = running ? 12 : 6
+    const amplitude = running ? 0.8 : 0.5
+    const t = state.clock.elapsedTime * speed
+    // Arms swing opposite to legs
+    if (leftArmRef.current) leftArmRef.current.rotation.x = Math.sin(t) * amplitude
+    if (rightArmRef.current) rightArmRef.current.rotation.x = -Math.sin(t) * amplitude
+    if (leftLegRef.current) leftLegRef.current.rotation.x = -Math.sin(t) * amplitude
+    if (rightLegRef.current) rightLegRef.current.rotation.x = Math.sin(t) * amplitude
+  })
+
+  // Skin color
+  const skinColor = '#e8b89d'
+  const shirtColor = '#2266cc'
+  const pantsColor = '#334455'
+  const hairColor = '#3a2a1a'
+  const shoeColor = '#222'
+
+  return (
+    <group ref={groupRef}>
+      {/* Head */}
+      <mesh position={[0, 1.55, 0]}>
+        <sphereGeometry args={[0.14, 12, 10]} />
+        <meshStandardMaterial color={skinColor} />
+      </mesh>
+      {/* Hair (top of head) */}
+      <mesh position={[0, 1.67, -0.02]}>
+        <sphereGeometry args={[0.13, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2]} />
+        <meshStandardMaterial color={hairColor} />
+      </mesh>
+      {/* Hair sides */}
+      <mesh position={[0, 1.6, -0.06]}>
+        <boxGeometry args={[0.28, 0.1, 0.12]} />
+        <meshStandardMaterial color={hairColor} />
+      </mesh>
+      {/* Eyes */}
+      <mesh position={[-0.05, 1.56, 0.12]}>
+        <sphereGeometry args={[0.02, 6, 6]} />
+        <meshStandardMaterial color="white" />
+      </mesh>
+      <mesh position={[0.05, 1.56, 0.12]}>
+        <sphereGeometry args={[0.02, 6, 6]} />
+        <meshStandardMaterial color="white" />
+      </mesh>
+      {/* Pupils */}
+      <mesh position={[-0.05, 1.56, 0.135]}>
+        <sphereGeometry args={[0.01, 6, 6]} />
+        <meshStandardMaterial color="#222" />
+      </mesh>
+      <mesh position={[0.05, 1.56, 0.135]}>
+        <sphereGeometry args={[0.01, 6, 6]} />
+        <meshStandardMaterial color="#222" />
+      </mesh>
+      {/* Mouth */}
+      <mesh position={[0, 1.48, 0.12]}>
+        <boxGeometry args={[0.06, 0.015, 0.01]} />
+        <meshStandardMaterial color="#cc6666" />
+      </mesh>
+      {/* Neck */}
+      <mesh position={[0, 1.38, 0]}>
+        <cylinderGeometry args={[0.05, 0.05, 0.06, 8]} />
+        <meshStandardMaterial color={skinColor} />
+      </mesh>
+      {/* Torso */}
+      <mesh position={[0, 1.15, 0]}>
+        <boxGeometry args={[0.3, 0.4, 0.18]} />
+        <meshStandardMaterial color={shirtColor} />
+      </mesh>
+      {/* Left arm */}
+      <group ref={leftArmRef} position={[-0.2, 1.3, 0]}>
+        <mesh position={[0, -0.15, 0]}>
+          <boxGeometry args={[0.08, 0.3, 0.08]} />
+          <meshStandardMaterial color={shirtColor} />
+        </mesh>
+        {/* Hand */}
+        <mesh position={[0, -0.32, 0]}>
+          <sphereGeometry args={[0.04, 6, 6]} />
+          <meshStandardMaterial color={skinColor} />
+        </mesh>
+      </group>
+      {/* Right arm */}
+      <group ref={rightArmRef} position={[0.2, 1.3, 0]}>
+        <mesh position={[0, -0.15, 0]}>
+          <boxGeometry args={[0.08, 0.3, 0.08]} />
+          <meshStandardMaterial color={shirtColor} />
+        </mesh>
+        <mesh position={[0, -0.32, 0]}>
+          <sphereGeometry args={[0.04, 6, 6]} />
+          <meshStandardMaterial color={skinColor} />
+        </mesh>
+      </group>
+      {/* Left leg */}
+      <group ref={leftLegRef} position={[-0.08, 0.9, 0]}>
+        <mesh position={[0, -0.2, 0]}>
+          <boxGeometry args={[0.1, 0.4, 0.1]} />
+          <meshStandardMaterial color={pantsColor} />
+        </mesh>
+        <mesh position={[0, -0.42, 0.02]}>
+          <boxGeometry args={[0.1, 0.06, 0.14]} />
+          <meshStandardMaterial color={shoeColor} />
+        </mesh>
+      </group>
+      {/* Right leg */}
+      <group ref={rightLegRef} position={[0.08, 0.9, 0]}>
+        <mesh position={[0, -0.2, 0]}>
+          <boxGeometry args={[0.1, 0.4, 0.1]} />
+          <meshStandardMaterial color={pantsColor} />
+        </mesh>
+        <mesh position={[0, -0.42, 0.02]}>
+          <boxGeometry args={[0.1, 0.06, 0.14]} />
+          <meshStandardMaterial color={shoeColor} />
+        </mesh>
+      </group>
+    </group>
+  )
+}
+
+// ==================== WALKER (Walking Mode) ====================
+
+function Walker({ active, driverName, onPositionUpdate }: { active: boolean; driverName?: string; onPositionUpdate?: (x: number, y: number, z: number, rot: number, mode: string) => void }) {
+  const walkerRef = useRef<THREE.Group>(null)
+  const posRef = useRef<[number, number, number]>([0, 0, 8])
+  const rotRef = useRef(0)
+  const speed = useRef(0)
+  const keys = useRef<Set<string>>(new Set())
+  const broadcastTimer = useRef(0)
+  const [isWalking, setIsWalking] = useState(false)
+  const [isRunning, setIsRunning] = useState(false)
+
+  useEffect(() => {
+    if (!active) {
+      keys.current.clear()
+      speed.current = 0
+      return
+    }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase()
+      keys.current.add(key)
+      if (key === ' ') e.preventDefault()
+    }
+    const handleKeyUp = (e: KeyboardEvent) => keys.current.delete(e.key.toLowerCase())
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+      keys.current.clear()
+    }
+  }, [active])
+
+  useFrame((state, delta) => {
+    if (!active || !walkerRef.current) return
+    const k = keys.current
+    const dt = Math.min(delta, 0.05)
+
+    const running = k.has(' ')
+    const walkSpeed = running ? 0.15 : 0.06
+    const wantForward = k.has('w')
+    const wantBack = k.has('s')
+
+    if (wantForward) speed.current = Math.min(speed.current + 0.005, walkSpeed)
+    else if (wantBack) speed.current = Math.max(speed.current - 0.003, -0.03)
+    else speed.current *= 0.85
+
+    // Steering
+    if (k.has('a') || k.has('arrowleft')) rotRef.current += 0.04
+    if (k.has('d') || k.has('arrowright')) rotRef.current -= 0.04
+
+    let newX = posRef.current[0] + Math.sin(rotRef.current) * speed.current
+    const newY = 0.45 // ground level (feet on ground)
+    let newZ = posRef.current[2] + Math.cos(rotRef.current) * speed.current
+
+    // Boundary
+    const dist = Math.sqrt(newX * newX + newZ * newZ)
+    if (dist > CITY_BOUNDARY_RADIUS) {
+      const f = CITY_BOUNDARY_RADIUS / dist
+      newX *= f
+      newZ *= f
+      speed.current *= 0.5
+    }
+
+    posRef.current = [newX, newY, newZ]
+    walkerRef.current.position.set(newX, newY, newZ)
+    walkerRef.current.rotation.y = rotRef.current
+
+    const walking = Math.abs(speed.current) > 0.005
+    setIsWalking(walking)
+    setIsRunning(walking && running)
+
+    // Camera follows behind
+    const camDist = 4
+    const camHeight = newY + 2.5
+    const targetCam = new THREE.Vector3(
+      newX - Math.sin(rotRef.current) * camDist,
+      camHeight,
+      newZ - Math.cos(rotRef.current) * camDist
+    )
+    state.camera.position.lerp(targetCam, 0.06)
+    state.camera.lookAt(newX, newY + 1, newZ)
+
+    // Broadcast
+    broadcastTimer.current += dt
+    if (broadcastTimer.current > 0.05) {
+      broadcastTimer.current = 0
+      onPositionUpdate?.(newX, newY, newZ, rotRef.current, 'walking')
+    }
+  })
+
+  if (!active) return null
+
+  return (
+    <group ref={walkerRef} position={[0, 0.45, 8]}>
+      <Character walking={isWalking} running={isRunning} />
+      {driverName && (
+        <Text
+          position={[0, 2, 0]}
+          fontSize={0.15}
+          color="#00ff88"
+          anchorX="center"
+          anchorY="bottom"
+          outlineWidth={0.02}
+          outlineColor="#000000"
+        >
+          {driverName}
+        </Text>
+      )}
+    </group>
+  )
+}
+
 // ==================== GHOST CARS (OTHER PLAYERS) ====================
 
 type GhostCarData = {
@@ -545,6 +898,8 @@ type GhostCarData = {
   z: number
   rot: number
   nitro: boolean
+  mode: 'flying' | 'walking'
+  tier: number
 }
 
 function GhostCar({ data, myCarPos }: { data: GhostCarData; myCarPos: React.MutableRefObject<[number, number, number]> }) {
@@ -605,52 +960,40 @@ function GhostCar({ data, myCarPos }: { data: GhostCarData; myCarPos: React.Muta
     ref.current.rotation.y += diff * 0.3
   })
 
+  // Detect if this ghost is walking based on stored walking state
+  const ghostWalking = useRef(false)
+  const prevY = useRef(data.y)
+  useEffect(() => {
+    ghostWalking.current = Math.abs(data.y - prevY.current) > 0.01
+    prevY.current = data.y
+  }, [data.y])
+
+  if (data.mode === 'walking') {
+    return (
+      <group ref={ref} position={[data.x, data.y, data.z]} rotation={[0, data.rot, 0]}>
+        <Character walking={true} running={false} />
+        <Text
+          position={[0, 2, 0]}
+          fontSize={0.15}
+          color="#00ff88"
+          anchorX="center"
+          anchorY="bottom"
+          outlineWidth={0.02}
+          outlineColor="#000000"
+        >
+          {data.name}
+        </Text>
+      </group>
+    )
+  }
+
   return (
     <group ref={ref} position={[data.x, data.y, data.z]} rotation={[0, data.rot, 0]}>
-      {/* Ghost flying car body */}
-      <mesh position={[0, 0, 0]}>
-        <boxGeometry args={[0.4, 0.12, 0.85]} />
-        <meshStandardMaterial color="#f7931a" metalness={0.7} roughness={0.2} transparent opacity={0.85} />
-      </mesh>
-      <mesh position={[0, 0.1, -0.05]}>
-        <boxGeometry args={[0.32, 0.1, 0.3]} />
-        <meshStandardMaterial color="#222" metalness={0.8} roughness={0.2} transparent opacity={0.85} />
-      </mesh>
-      {/* Wheels pointing down with jets */}
-      {([[-0.22, -0.1, 0.28], [0.22, -0.1, 0.28], [-0.22, -0.1, -0.28], [0.22, -0.1, -0.28]] as [number, number, number][]).map((wpos, i) => (
-        <group key={i} position={wpos}>
-          <mesh rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.05, 0.05, 0.04]} />
-            <meshStandardMaterial color="#222" metalness={0.6} />
-          </mesh>
-          <mesh position={[0, -0.07, 0]}>
-            <coneGeometry args={[0.035, 0.12, 6]} />
-            <meshStandardMaterial color="#0088ff" emissive="#0066ff" emissiveIntensity={2} transparent opacity={0.6} />
-          </mesh>
-        </group>
-      ))}
-      {/* Headlights */}
-      <mesh position={[-0.12, 0, 0.43]}>
-        <sphereGeometry args={[0.025]} />
-        <meshStandardMaterial emissive="#ffcc00" emissiveIntensity={1.5} />
-      </mesh>
-      <mesh position={[0.12, 0, 0.43]}>
-        <sphereGeometry args={[0.025]} />
-        <meshStandardMaterial emissive="#ffcc00" emissiveIntensity={1.5} />
-      </mesh>
-      {/* Taillights */}
-      <mesh position={[-0.15, 0, -0.43]}>
-        <sphereGeometry args={[0.02]} />
-        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={1.5} />
-      </mesh>
-      <mesh position={[0.15, 0, -0.43]}>
-        <sphereGeometry args={[0.02]} />
-        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={1.5} />
-      </mesh>
+      <TieredCarBody tier={data.tier || 1} />
       {/* Nitro rear flame for ghost */}
       {data.nitro && (
         <group>
-          <mesh position={[0, 0, -0.6]}>
+          <mesh position={[0, 0, -0.6]} rotation={[Math.PI / 2, 0, 0]}>
             <coneGeometry args={[0.08, 0.4, 6]} />
             <meshStandardMaterial color="#0066ff" emissive="#0088ff" emissiveIntensity={3} transparent opacity={0.8} />
           </mesh>
@@ -684,7 +1027,7 @@ function GhostCars({ ghosts, myCarPos }: { ghosts: GhostCarData[]; myCarPos: Rea
 
 // ==================== CAR WITH NITRO ====================
 
-function Car({ active, driverName, ghostCarsRef, onNitroUpdate, onPositionUpdate }: { active: boolean; driverName?: string; ghostCarsRef?: React.MutableRefObject<GhostCarData[]>; onNitroUpdate?: (charges: number, recharging: boolean) => void; onPositionUpdate?: (x: number, y: number, z: number, rot: number, nitro: boolean) => void }) {
+function Car({ active, driverName, userTier, ghostCarsRef, onNitroUpdate, onPositionUpdate }: { active: boolean; driverName?: string; userTier?: number; ghostCarsRef?: React.MutableRefObject<GhostCarData[]>; onNitroUpdate?: (charges: number, recharging: boolean) => void; onPositionUpdate?: (x: number, y: number, z: number, rot: number, nitro: boolean) => void }) {
   const carRef = useRef<THREE.Group>(null)
   const posRef = useRef<[number, number, number]>([0, 5, 8])
   const rotRef = useRef(0)
@@ -882,57 +1225,7 @@ function Car({ active, driverName, ghostCarsRef, onNitroUpdate, onPositionUpdate
 
   return (
     <group ref={carRef} position={[0, 5, 8]}>
-      {/* Car body - sleek white */}
-      <mesh position={[0, 0, 0]}>
-        <boxGeometry args={[0.45, 0.14, 0.9]} />
-        <meshStandardMaterial color="white" metalness={0.7} roughness={0.2} />
-      </mesh>
-      {/* Hood */}
-      <mesh position={[0, 0.02, 0.35]}>
-        <boxGeometry args={[0.4, 0.08, 0.25]} />
-        <meshStandardMaterial color="white" metalness={0.7} roughness={0.2} />
-      </mesh>
-      {/* Cabin */}
-      <mesh position={[0, 0.12, -0.05]}>
-        <boxGeometry args={[0.38, 0.12, 0.35]} />
-        <meshStandardMaterial color="#222" metalness={0.9} roughness={0.1} />
-      </mesh>
-
-      {/* Wheels pointing DOWN with blue jets */}
-      {([[-0.24, -0.12, 0.3], [0.24, -0.12, 0.3], [-0.24, -0.12, -0.3], [0.24, -0.12, -0.3]] as [number, number, number][]).map((wpos, i) => (
-        <group key={i} position={wpos}>
-          <mesh rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.055, 0.055, 0.04]} />
-            <meshStandardMaterial color="#222" metalness={0.6} />
-          </mesh>
-          <mesh position={[0, -0.08, 0]}>
-            <coneGeometry args={[0.04, 0.15, 8]} />
-            <meshStandardMaterial color="#0088ff" emissive="#0066ff" emissiveIntensity={2} transparent opacity={0.7} />
-          </mesh>
-        </group>
-      ))}
-
-      {/* Jet glow light under car */}
-      <pointLight position={[0, -0.2, 0]} intensity={1.0} distance={3} color="#4488ff" />
-
-      {/* Headlights */}
-      <mesh position={[-0.13, 0, 0.46]}>
-        <sphereGeometry args={[0.03]} />
-        <meshStandardMaterial emissive="white" emissiveIntensity={2} />
-      </mesh>
-      <mesh position={[0.13, 0, 0.46]}>
-        <sphereGeometry args={[0.03]} />
-        <meshStandardMaterial emissive="white" emissiveIntensity={2} />
-      </mesh>
-      {/* Taillights */}
-      <mesh position={[-0.16, 0, -0.46]}>
-        <sphereGeometry args={[0.025]} />
-        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={1.5} />
-      </mesh>
-      <mesh position={[0.16, 0, -0.46]}>
-        <sphereGeometry args={[0.025]} />
-        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={1.5} />
-      </mesh>
+      <TieredCarBody tier={userTier || 1} />
 
       {/* Nitro rear flames (when boosting) */}
       <NitroFlame active={nitroFlameActive} />
@@ -1438,7 +1731,7 @@ function NitroUI({ charges, recharging }: { charges: number; recharging: boolean
 
 // ==================== MAIN COMPONENT ====================
 
-export default function City3D({ buildings, drivingMode = false, driverName = '', supabaseClient }: { buildings: BuildingType[]; drivingMode?: boolean; driverName?: string; supabaseClient?: any }) {
+export default function City3D({ buildings, drivingMode = false, walkingMode = false, driverName = '', userTier = 1, supabaseClient }: { buildings: BuildingType[]; drivingMode?: boolean; walkingMode?: boolean; driverName?: string; userTier?: number; supabaseClient?: any }) {
   const [selectedBuilding, setSelectedBuilding] = useState<BuildingType | null>(null)
   const [nitroCharges, setNitroCharges] = useState(2)
   const [nitroRecharging, setNitroRecharging] = useState(false)
@@ -1456,10 +1749,10 @@ export default function City3D({ buildings, drivingMode = false, driverName = ''
     ghostCarsRef.current = ghostCars
   }, [ghostCars])
 
-  // Supabase Realtime Presence for multiplayer
+  // Supabase Realtime Presence for multiplayer (works for both flying and walking)
   useEffect(() => {
-    if (!supabaseClient || !drivingMode || !driverName) {
-      // Clean up when leaving driving mode
+    const activeMode = drivingMode || walkingMode
+    if (!supabaseClient || !activeMode || !driverName) {
       if (channelRef.current) {
         channelRef.current.unsubscribe()
         channelRef.current = null
@@ -1469,7 +1762,7 @@ export default function City3D({ buildings, drivingMode = false, driverName = ''
       return
     }
 
-    const channel = supabaseClient.channel('city-drivers', {
+    const channel = supabaseClient.channel('city-players', {
       config: { presence: { key: myIdRef.current } },
     })
 
@@ -1491,6 +1784,8 @@ export default function City3D({ buildings, drivingMode = false, driverName = ''
               z: p.z,
               rot: p.rot || 0,
               nitro: p.nitro || false,
+              mode: p.mode || 'flying',
+              tier: p.tier || 1,
             })
           }
         }
@@ -1502,10 +1797,12 @@ export default function City3D({ buildings, drivingMode = false, driverName = ''
           await channel.track({
             name: driverName,
             x: 0,
-            y: 0.15,
+            y: walkingMode ? 0.45 : 5,
             z: 8,
             rot: 0,
             nitro: false,
+            mode: walkingMode ? 'walking' : 'flying',
+            tier: userTier,
           })
         }
       })
@@ -1516,7 +1813,7 @@ export default function City3D({ buildings, drivingMode = false, driverName = ''
       channel.unsubscribe()
       channelRef.current = null
     }
-  }, [supabaseClient, drivingMode, driverName])
+  }, [supabaseClient, drivingMode, walkingMode, driverName, userTier])
 
   // NPC spectator mode
   const handleNPCClick = useCallback((idx: number) => {
@@ -1550,15 +1847,19 @@ export default function City3D({ buildings, drivingMode = false, driverName = ''
     setNitroRecharging(recharging)
   }, [])
 
-  const handlePositionUpdate = useCallback((x: number, y: number, z: number, rot: number, nitro: boolean) => {
+  const handlePositionUpdate = useCallback((x: number, y: number, z: number, rot: number, nitroOrMode: boolean | string) => {
     myCarPosRef.current = [x, y, z]
     if (channelRef.current) {
+      const isWalking = typeof nitroOrMode === 'string' && nitroOrMode === 'walking'
       channelRef.current.track({
         name: driverName,
-        x, y, z, rot, nitro,
+        x, y, z, rot,
+        nitro: typeof nitroOrMode === 'boolean' ? nitroOrMode : false,
+        mode: isWalking ? 'walking' : 'flying',
+        tier: userTier,
       })
     }
-  }, [driverName])
+  }, [driverName, userTier])
 
   return (
     <div className="w-full h-screen relative">
@@ -1571,10 +1872,10 @@ export default function City3D({ buildings, drivingMode = false, driverName = ''
         <NitroUI charges={nitroCharges} recharging={nitroRecharging} />
       )}
 
-      {/* Online drivers counter */}
-      {drivingMode && onlineCount > 0 && (
+      {/* Online players counter */}
+      {(drivingMode || walkingMode) && onlineCount > 0 && (
         <div className="fixed top-20 right-6 z-20 bg-black/80 backdrop-blur-sm rounded-lg px-3 py-2 text-center">
-          <p className="text-xs text-green-400 font-bold">{onlineCount} driving</p>
+          <p className="text-xs text-green-400 font-bold">{onlineCount} online</p>
         </div>
       )}
 
@@ -1623,10 +1924,11 @@ export default function City3D({ buildings, drivingMode = false, driverName = ''
           <Building key={b.id} data={b} onClick={handleBuildingClick} />
         ))}
 
-        <Car active={drivingMode} driverName={driverName} ghostCarsRef={ghostCarsRef} onNitroUpdate={handleNitroUpdate} onPositionUpdate={handlePositionUpdate} />
+        <Car active={drivingMode} driverName={driverName} userTier={userTier} ghostCarsRef={ghostCarsRef} onNitroUpdate={handleNitroUpdate} onPositionUpdate={handlePositionUpdate} />
+        <Walker active={walkingMode} driverName={driverName} onPositionUpdate={handlePositionUpdate} />
         <GhostCars ghosts={ghostCars} myCarPos={myCarPosRef} />
 
-        {!drivingMode && followingNPC === null && (
+        {!drivingMode && !walkingMode && followingNPC === null && (
           <OrbitControls
             enablePan={true}
             enableZoom={true}

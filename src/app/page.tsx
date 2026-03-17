@@ -15,7 +15,9 @@ export default function HomePage() {
   const [stats, setStats] = useState({ citizens: 0, totalBtc: 0 })
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [userName, setUserName] = useState('')
+  const [userId, setUserId] = useState('')
   const [drivingMode, setDrivingMode] = useState(false)
+  const [walkingMode, setWalkingMode] = useState(false)
 
   const fetchBuildings = () => {
     fetch('/api/buildings')
@@ -37,6 +39,7 @@ export default function HomePage() {
       setIsLoggedIn(!!data.user)
       if (data.user) {
         setUserName(data.user.user_metadata?.username || data.user.user_metadata?.display_name || data.user.email?.split('@')[0] || 'Anon')
+        setUserId(data.user.id)
       }
     })
 
@@ -99,8 +102,8 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Compact stats when driving */}
-      {drivingMode && (
+      {/* Compact stats when driving or walking */}
+      {(drivingMode || walkingMode) && (
         <div className="fixed top-20 left-4 z-20 bg-black/70 backdrop-blur-sm rounded-lg px-3 py-2 flex gap-4 text-xs">
           <div>
             <p className="text-[#f7931a] font-bold text-lg">{stats.citizens}</p>
@@ -113,8 +116,8 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Bottom legend - hidden when driving */}
-      <div className={`absolute bottom-4 left-4 z-10 bg-black/70 backdrop-blur-sm rounded-lg p-4 text-xs space-y-1 ${drivingMode ? 'hidden' : ''}`}>
+      {/* Bottom legend - hidden when driving/walking */}
+      <div className={`absolute bottom-4 left-4 z-10 bg-black/70 backdrop-blur-sm rounded-lg p-4 text-xs space-y-1 ${(drivingMode || walkingMode) ? 'hidden' : ''}`}>
         <p className="text-gray-400 font-semibold mb-2">Building Tiers</p>
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: '#FFD700' }} />
@@ -159,15 +162,15 @@ export default function HomePage() {
           </div>
         </div>
       ) : (
-        <City3D buildings={buildings} drivingMode={drivingMode} driverName={userName} supabaseClient={supabase} />
+        <City3D buildings={buildings} drivingMode={drivingMode} walkingMode={walkingMode} driverName={userName} userTier={buildings.find(b => b.user_id === userId)?.height || 1} supabaseClient={supabase} />
       )}
 
-      {/* Drive Around button - only for logged in users */}
-      {isLoggedIn && (
+      {/* Mode buttons - only for logged in users */}
+      {isLoggedIn && !walkingMode && (
         <button
-          onClick={(e) => { (e.target as HTMLButtonElement).blur(); setDrivingMode((prev) => !prev) }}
+          onClick={(e) => { (e.target as HTMLButtonElement).blur(); setDrivingMode((prev) => !prev); setWalkingMode(false) }}
           onKeyDown={(e) => { if (e.key === ' ') e.preventDefault() }}
-          className={`fixed bottom-6 right-6 z-20 px-5 py-3 rounded-xl font-bold text-sm shadow-lg transition-all duration-200 ${
+          className={`fixed bottom-20 right-6 z-20 px-5 py-3 rounded-xl font-bold text-sm shadow-lg transition-all duration-200 ${
             drivingMode
               ? 'bg-red-600 hover:bg-red-700 text-white'
               : 'bg-[#f7931a] hover:bg-[#e8850f] text-black'
@@ -176,27 +179,45 @@ export default function HomePage() {
           {drivingMode ? 'Exit Flying Mode' : 'Fly Around the City'}
         </button>
       )}
+      {isLoggedIn && !drivingMode && (
+        <button
+          onClick={(e) => { (e.target as HTMLButtonElement).blur(); setWalkingMode((prev) => !prev); setDrivingMode(false) }}
+          onKeyDown={(e) => { if (e.key === ' ') e.preventDefault() }}
+          className={`fixed bottom-6 right-6 z-20 px-5 py-3 rounded-xl font-bold text-sm shadow-lg transition-all duration-200 ${
+            walkingMode
+              ? 'bg-red-600 hover:bg-red-700 text-white'
+              : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+          }`}
+        >
+          {walkingMode ? 'Exit Walking Mode' : 'Walk Around the City'}
+        </button>
+      )}
 
-      {/* Driving controls hint - desktop only */}
+      {/* Controls hints */}
       {drivingMode && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 bg-black/80 backdrop-blur-sm text-gray-300 text-xs px-4 py-2 rounded-lg hidden md:block">
           Shift/W = Forward &nbsp; S = Reverse &nbsp; A/D = Steer &nbsp; Up = Climb &nbsp; Down = Descend &nbsp; SPACE = Nitro
         </div>
       )}
-      {/* Mobile controls hint */}
-      {drivingMode && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 bg-black/80 backdrop-blur-sm text-gray-300 text-xs px-4 py-2 rounded-lg md:hidden">
-          Touch = Accelerate &nbsp; Drag Left/Right = Steer
+      {walkingMode && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 bg-black/80 backdrop-blur-sm text-gray-300 text-xs px-4 py-2 rounded-lg hidden md:block">
+          W = Walk Forward &nbsp; S = Walk Back &nbsp; A/D = Turn &nbsp; SPACE = Run
         </div>
       )}
-      {/* Mobile nitro button */}
+      {/* Mobile controls hint */}
+      {(drivingMode || walkingMode) && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-20 bg-black/80 backdrop-blur-sm text-gray-300 text-xs px-4 py-2 rounded-lg md:hidden">
+          Touch = {walkingMode ? 'Walk' : 'Accelerate'} &nbsp; Drag Left/Right = Steer
+        </div>
+      )}
+      {/* Mobile nitro/run button */}
       {drivingMode && (
         <button
           id="mobile-nitro-btn"
           onTouchStart={(e) => { e.preventDefault(); window.dispatchEvent(new KeyboardEvent('keydown', { key: ' ' })) }}
           className="fixed bottom-20 right-6 z-20 w-14 h-14 rounded-full bg-blue-600/80 backdrop-blur-sm text-white font-bold text-lg shadow-lg active:bg-blue-400 md:hidden flex items-center justify-center"
         >
-          ⚡
+          N
         </button>
       )}
     </div>
