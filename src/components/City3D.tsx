@@ -4,6 +4,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls, Text, useGLTF, useAnimations, Clone } from '@react-three/drei'
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import * as THREE from 'three'
+import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import type { Building as BuildingType } from '@/lib/supabase'
 import { satoshisToBtc } from '@/lib/bitcoin'
 import { getCharacterFile, CHARACTER_LIST } from '@/lib/characters'
@@ -733,9 +734,9 @@ function Character({ walking, running, moveSpeed = 0 }: { walking: boolean; runn
   const { actions } = useAnimations(animations, groupRef)
   const currentAction = useRef<string>('')
 
-  // Clone model for independent instances
+  // Clone model using SkeletonUtils for proper skinned mesh cloning
   const model = useMemo(() => {
-    const clone = glbScene.clone(true)
+    const clone = skeletonClone(glbScene)
     clone.traverse((child: THREE.Object3D) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh
