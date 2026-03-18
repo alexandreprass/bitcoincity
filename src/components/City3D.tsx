@@ -286,7 +286,7 @@ function FloorLines({ height }: { height: number }) {
       {lines.map((y, i) => (
         <mesh key={i} position={[0, y, 0]}>
           <boxGeometry args={[w + 0.02, 0.02, w + 0.02]} />
-          <meshStandardMaterial color="#00000033" transparent opacity={0.15} />
+          <meshStandardMaterial color="#000000" transparent opacity={0.15} />
         </mesh>
       ))}
     </>
@@ -296,7 +296,9 @@ function FloorLines({ height }: { height: number }) {
 const LOD_DISTANCE = 30 // effects only render within this distance from camera
 
 // 3D Character model displayed in front of each building
-function CharacterModel({ characterId, scale = 0.8 }: { characterId: string; scale?: number }) {
+// NOTE: GLB models have internal scale of 100, so we use 0.005 to normalize to ~0.5 units tall
+const CHARACTER_SCALE_BASE = 0.005
+function CharacterModel({ characterId, scale = 1.0 }: { characterId: string; scale?: number }) {
   const filePath = getCharacterFile(characterId)
   const { scene } = useGLTF(filePath)
   const clonedScene = useMemo(() => {
@@ -305,11 +307,13 @@ function CharacterModel({ characterId, scale = 0.8 }: { characterId: string; sca
       if (child.isMesh && child.material) {
         // Clone material so each instance is independent
         const mat = child.material.clone()
-        // Ensure materials are visible in the dark city scene
-        if (!mat.emissive) mat.emissive = new THREE.Color(0x000000)
-        mat.emissive = new THREE.Color(0x333333)
-        mat.emissiveIntensity = 0.4
-        // Make sure the material responds to scene lights
+        // Brighten base color (models are very dark in linear space)
+        if (mat.color) {
+          mat.color.multiplyScalar(2.5)
+        }
+        // Add emissive so characters are visible in the dark city scene
+        mat.emissive = new THREE.Color(0x444444)
+        mat.emissiveIntensity = 0.5
         mat.needsUpdate = true
         child.material = mat
         child.castShadow = true
@@ -322,7 +326,7 @@ function CharacterModel({ characterId, scale = 0.8 }: { characterId: string; sca
   return (
     <primitive
       object={clonedScene}
-      scale={scale}
+      scale={CHARACTER_SCALE_BASE * scale}
       rotation={[0, Math.PI, 0]}
     />
   )
@@ -453,8 +457,8 @@ function Building({ data, onClick }: { data: BuildingType; onClick: (b: Building
 
       {/* Character model in front of building */}
       {data.character && isNear && (
-        <group position={[0, 0.16, w / 2 + 0.6]}>
-          <CharacterModel characterId={data.character} scale={0.7} />
+        <group position={[0, 0.16, w / 2 + 0.8]}>
+          <CharacterModel characterId={data.character} scale={1.4} />
         </group>
       )}
 

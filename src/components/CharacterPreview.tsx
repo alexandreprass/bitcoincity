@@ -6,6 +6,9 @@ import { useMemo, Suspense } from 'react'
 import * as THREE from 'three'
 import { getCharacterFile } from '@/lib/characters'
 
+// GLB models have internal scale of 100, so we normalize with 0.005
+// 0.005 * 100 = 0.5 units tall base, then scale up for preview
+const PREVIEW_SCALE = 0.009 // ~0.9 units tall, fits nicely in preview canvas
 function CharacterModelPreview({ characterId }: { characterId: string }) {
   const filePath = getCharacterFile(characterId)
   const { scene } = useGLTF(filePath)
@@ -15,8 +18,12 @@ function CharacterModelPreview({ characterId }: { characterId: string }) {
     clone.traverse((child: any) => {
       if (child.isMesh && child.material) {
         const mat = child.material.clone()
-        mat.emissive = new THREE.Color(0x222222)
-        mat.emissiveIntensity = 0.3
+        // Brighten the dark linear-space colors
+        if (mat.color) {
+          mat.color.multiplyScalar(2.5)
+        }
+        mat.emissive = new THREE.Color(0x444444)
+        mat.emissiveIntensity = 0.4
         child.material = mat
       }
     })
@@ -26,8 +33,8 @@ function CharacterModelPreview({ characterId }: { characterId: string }) {
   return (
     <primitive
       object={clonedScene}
-      scale={1.8}
-      position={[0, -1.6, 0]}
+      scale={PREVIEW_SCALE}
+      position={[0, -0.5, 0]}
       rotation={[0, Math.PI * 0.1, 0]}
     />
   )
