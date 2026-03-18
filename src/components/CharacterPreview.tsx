@@ -6,12 +6,10 @@ import { useMemo, Suspense } from 'react'
 import * as THREE from 'three'
 import { getCharacterFile } from '@/lib/characters'
 
-// Use a wider framing so the dashboard picker shows the full character.
-const PREVIEW_SCALE = 0.4
 function CharacterModelPreview({ characterId }: { characterId: string }) {
   const filePath = getCharacterFile(characterId)
   const { scene } = useGLTF(filePath)
-  const clonedScene = useMemo(() => {
+  const fittedCharacter = useMemo(() => {
     const clone = scene.clone(true)
     // Brighten materials for better preview
     clone.traverse((child: any) => {
@@ -26,16 +24,25 @@ function CharacterModelPreview({ characterId }: { characterId: string }) {
         child.material = mat
       }
     })
-    return clone
+
+    clone.updateMatrixWorld(true)
+    const box = new THREE.Box3().setFromObject(clone)
+    const size = box.getSize(new THREE.Vector3())
+    const center = box.getCenter(new THREE.Vector3())
+    const fitScale = 1.8 / Math.max(size.y, 0.001)
+
+    return { clone, center, fitScale }
   }, [scene])
 
   return (
-    <primitive
-      object={clonedScene}
-      scale={PREVIEW_SCALE}
-      position={[0, -0.36, 0]}
-      rotation={[0, Math.PI * 0.1, 0]}
-    />
+    <group position={[0, -0.9, 0]}>
+      <primitive
+        object={fittedCharacter.clone}
+        scale={fittedCharacter.fitScale}
+        position={[-fittedCharacter.center.x, -fittedCharacter.center.y, -fittedCharacter.center.z]}
+        rotation={[0, Math.PI * 0.1, 0]}
+      />
+    </group>
   )
 }
 
@@ -63,7 +70,7 @@ export default function CharacterPreview({
       style={{ width: size, height: size, background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)' }}
     >
       <Canvas
-        camera={{ position: [0, 0.55, 4.8], fov: 30 }}
+        camera={{ position: [0, 0.65, 4.8], fov: 28 }}
         gl={{ antialias: true, alpha: true }}
         style={{ width: '100%', height: '100%' }}
       >
@@ -94,7 +101,7 @@ export function CharacterThumbnail({
       style={{ width: size, height: size, background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)' }}
     >
       <Canvas
-        camera={{ position: [0, 0.45, 5], fov: 28 }}
+        camera={{ position: [0, 0.65, 5.2], fov: 26 }}
         gl={{ antialias: true, alpha: true }}
         style={{ width: '100%', height: '100%' }}
       >
