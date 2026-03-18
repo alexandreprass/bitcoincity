@@ -24,6 +24,11 @@ export default function HomePage() {
       .then((res) => res.json())
       .then((data) => {
         const b = data.buildings || []
+        // DEBUG: Log first 3 buildings to check character field
+        console.log('[fetchBuildings] Total buildings:', b.length)
+        b.slice(0, 3).forEach((bld: any, i: number) => {
+          console.log(`[fetchBuildings] Building[${i}]: "${bld.display_name || bld.username}" character="${bld.character}" hasCharField=${('character' in bld)}`)
+        })
         setBuildings(b)
         setStats({
           citizens: b.length,

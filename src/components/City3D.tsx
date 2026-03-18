@@ -301,8 +301,27 @@ const CHARACTER_SCALE_BASE = 0.005
 function CharacterModel({ characterId, scale = 1.0 }: { characterId: string; scale?: number }) {
   const filePath = getCharacterFile(characterId)
   const { scene } = useGLTF(filePath)
+
+  useEffect(() => {
+    // DEBUG: Log model info on mount
+    console.log(`[CharacterModel] Loaded "${characterId}" from ${filePath}`)
+    console.log(`[CharacterModel] Scene children:`, scene.children.length)
+    const box = new THREE.Box3().setFromObject(scene)
+    const size = new THREE.Vector3()
+    box.getSize(size)
+    console.log(`[CharacterModel] Raw bounding box size:`, { x: size.x.toFixed(2), y: size.y.toFixed(2), z: size.z.toFixed(2) })
+    console.log(`[CharacterModel] Applied scale: ${CHARACTER_SCALE_BASE * scale} (base=${CHARACTER_SCALE_BASE} * scale=${scale})`)
+    console.log(`[CharacterModel] Final visible height: ~${(size.y * CHARACTER_SCALE_BASE * scale).toFixed(3)} units`)
+    let meshCount = 0
+    scene.traverse((child: any) => {
+      if (child.isMesh) meshCount++
+    })
+    console.log(`[CharacterModel] Mesh count:`, meshCount)
+  }, [scene, characterId, filePath, scale])
+
   const clonedScene = useMemo(() => {
     const clone = scene.clone(true)
+    let processedMeshes = 0
     clone.traverse((child: any) => {
       if (child.isMesh && child.material) {
         // Clone material so each instance is independent
@@ -318,10 +337,13 @@ function CharacterModel({ characterId, scale = 1.0 }: { characterId: string; sca
         child.material = mat
         child.castShadow = true
         child.receiveShadow = true
+        child.visible = true
+        processedMeshes++
       }
     })
+    console.log(`[CharacterModel] Processed ${processedMeshes} meshes for "${characterId}"`)
     return clone
-  }, [scene])
+  }, [scene, characterId])
 
   return (
     <primitive
@@ -455,12 +477,21 @@ function Building({ data, onClick }: { data: BuildingType; onClick: (b: Building
         </mesh>
       )}
 
-      {/* Character model in front of building */}
-      {data.character && isNear && (
-        <group position={[0, 0.16, w / 2 + 0.8]}>
-          <CharacterModel characterId={data.character} scale={1.4} />
-        </group>
-      )}
+      {/* Character model in front of building — DEBUG */}
+      {(() => {
+        if (!data.character) {
+          // Log only first building missing character
+          if (data.position_x === 0) console.log(`[Building DEBUG] "${data.display_name || data.username}" has NO character field. data.character=${data.character}`)
+          return null
+        }
+        if (!isNear) return null
+        console.log(`[Building DEBUG] Rendering character "${data.character}" for "${data.display_name || data.username}" at [${data.position_x}, ${data.position_z}], isNear=${isNear}`)
+        return (
+          <group position={[0, 0.16, w / 2 + 0.8]}>
+            <CharacterModel characterId={data.character} scale={1.4} />
+          </group>
+        )
+      })()}
 
       {/* Name label */}
       <Text
