@@ -296,8 +296,8 @@ function FloorLines({ height }: { height: number }) {
 const LOD_DISTANCE = 30 // effects only render within this distance from camera
 
 // 3D Character model displayed in front of each building
-// NOTE: GLB models have internal scale of 100, so we use 0.005 to normalize to ~0.5 units tall
-const CHARACTER_SCALE_BASE = 0.005
+// Models are ~1.8 units tall with internal transforms. Scale to ~0.7 units for city.
+const CHARACTER_SCALE_BASE = 0.4
 function CharacterModel({ characterId, scale = 1.0 }: { characterId: string; scale?: number }) {
   const filePath = getCharacterFile(characterId)
   const { scene } = useGLTF(filePath)

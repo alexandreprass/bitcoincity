@@ -6,9 +6,8 @@ import { useMemo, Suspense } from 'react'
 import * as THREE from 'three'
 import { getCharacterFile } from '@/lib/characters'
 
-// GLB models have internal scale of 100, so we normalize with 0.005
-// 0.005 * 100 = 0.5 units tall base, then scale up for preview
-const PREVIEW_SCALE = 0.009 // ~0.9 units tall, fits nicely in preview canvas
+// Models are ~1.8 units tall with internal transforms. Scale to fit preview canvas.
+const PREVIEW_SCALE = 0.7 // ~1.26 units tall, fits in preview canvas
 function CharacterModelPreview({ characterId }: { characterId: string }) {
   const filePath = getCharacterFile(characterId)
   const { scene } = useGLTF(filePath)
@@ -34,7 +33,7 @@ function CharacterModelPreview({ characterId }: { characterId: string }) {
     <primitive
       object={clonedScene}
       scale={PREVIEW_SCALE}
-      position={[0, -0.5, 0]}
+      position={[0, -0.65, 0]}
       rotation={[0, Math.PI * 0.1, 0]}
     />
   )
