@@ -31,7 +31,14 @@ function CharacterModelPreview({ characterId }: { characterId: string }) {
     const center = box.getCenter(new THREE.Vector3())
     const fitScale = 1.6 / Math.max(size.y, 0.001)
 
-    return { clone, center, fitScale, height: size.y * fitScale, minY: box.min.y }
+    // Scale the offset values so position is in parent-space (post-scale)
+    const s = fitScale
+    return { clone, fitScale,
+      offsetX: -center.x * s,
+      offsetY: -box.min.y * s,
+      offsetZ: -center.z * s,
+      height: size.y * s
+    }
   }, [scene])
 
   return (
@@ -40,9 +47,9 @@ function CharacterModelPreview({ characterId }: { characterId: string }) {
         object={fittedCharacter.clone}
         scale={fittedCharacter.fitScale}
         position={[
-          -fittedCharacter.center.x,
-          -fittedCharacter.minY,
-          -fittedCharacter.center.z,
+          fittedCharacter.offsetX,
+          fittedCharacter.offsetY,
+          fittedCharacter.offsetZ,
         ]}
         rotation={[0, Math.PI * 0.1, 0]}
       />
