@@ -29,13 +29,13 @@ function CharacterModelPreview({ characterId }: { characterId: string }) {
     const box = new THREE.Box3().setFromObject(clone)
     const size = box.getSize(new THREE.Vector3())
     const center = box.getCenter(new THREE.Vector3())
-    const fitScale = 1.45 / Math.max(size.y, 0.001)
+    const fitScale = 1.6 / Math.max(size.y, 0.001)
 
-    return { clone, center, fitScale, minY: box.min.y }
+    return { clone, center, fitScale, height: size.y * fitScale, minY: box.min.y }
   }, [scene])
 
   return (
-    <group position={[0, -1.15, 0]}>
+    <group position={[0, -(fittedCharacter.height / 2), 0]}>
       <primitive
         object={fittedCharacter.clone}
         scale={fittedCharacter.fitScale}
@@ -74,7 +74,7 @@ export default function CharacterPreview({
       style={{ width: size, height: size, background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)' }}
     >
       <Canvas
-        camera={{ position: [0, 0.4, 4.8], fov: 28 }}
+        camera={{ position: [0, 0, 3.5], fov: 30 }}
         gl={{ antialias: true, alpha: true }}
         style={{ width: '100%', height: '100%' }}
       >
@@ -105,7 +105,7 @@ export function CharacterThumbnail({
       style={{ width: size, height: size, background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)' }}
     >
       <Canvas
-        camera={{ position: [0, 0.35, 5.2], fov: 26 }}
+        camera={{ position: [0, 0, 3.5], fov: 30 }}
         gl={{ antialias: true, alpha: true }}
         style={{ width: '100%', height: '100%' }}
       >
