@@ -4,7 +4,6 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls, Text, useGLTF, useAnimations, Clone } from '@react-three/drei'
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import * as THREE from 'three'
-import { clone as skeletonClone } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import type { Building as BuildingType } from '@/lib/supabase'
 import { satoshisToBtc } from '@/lib/bitcoin'
 import { getCharacterFile, CHARACTER_LIST } from '@/lib/characters'
@@ -729,42 +728,56 @@ function TieredCarBody({ tier }: { tier: number }) {
 // ==================== WALKING CHARACTER ====================
 
 function Character({ walking, running, moveSpeed = 0 }: { walking: boolean; running: boolean; moveSpeed?: number }) {
-  const groupRef = useRef<THREE.Group>(null)
-  const { scene: glbScene, animations } = useGLTF('/models/satoshi.glb')
-  const { actions } = useAnimations(animations, groupRef)
+  const cloneRef = useRef<THREE.Group>(null)
+  const { scene, animations } = useGLTF('/models/satoshi.glb')
   const currentAction = useRef<string>('')
+  const mixerRef = useRef<THREE.AnimationMixer | null>(null)
+  const actionsRef = useRef<Record<string, THREE.AnimationAction>>({})
+  const initialized = useRef(false)
 
-  // Clone model using SkeletonUtils for proper skinned mesh cloning
-  const model = useMemo(() => {
-    const clone = skeletonClone(glbScene)
-    clone.traverse((child: THREE.Object3D) => {
+  // After Clone mounts, set up AnimationMixer on the cloned scene
+  useEffect(() => {
+    if (!cloneRef.current || initialized.current) return
+    initialized.current = true
+
+    const clonedRoot = cloneRef.current
+    // Brighten materials
+    clonedRoot.traverse((child: THREE.Object3D) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh
         mesh.castShadow = true
         mesh.receiveShadow = true
-        // Brighten dark materials so character is visible in the dark city
-        if (mesh.material) {
-          const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
-          mats.forEach(mat => {
-            if (mat instanceof THREE.MeshStandardMaterial) {
-              // Add subtle emissive so character doesn't disappear in dark scene
-              const lum = mat.color.r * 0.299 + mat.color.g * 0.587 + mat.color.b * 0.114
-              if (lum < 0.1) {
-                mat.emissive = new THREE.Color(0x222222)
-                mat.emissiveIntensity = 0.3
-              }
-              // Boost metallic look
-              mat.metalness = Math.max(mat.metalness, 0.15)
-            }
-          })
-        }
+        mesh.frustumCulled = false
       }
     })
-    return clone
-  }, [glbScene])
+
+    // Create mixer bound to the clone
+    const mixer = new THREE.AnimationMixer(clonedRoot)
+    mixerRef.current = mixer
+    const am: Record<string, THREE.AnimationAction> = {}
+    animations.forEach(clip => {
+      am[clip.name] = mixer.clipAction(clip)
+    })
+    actionsRef.current = am
+
+    // Start idle
+    const idle = am['CharacterArmature|Idle']
+    if (idle) {
+      idle.reset().play()
+      currentAction.current = 'CharacterArmature|Idle'
+    }
+  }, [animations])
+
+  // Update mixer every frame
+  useFrame((_, delta) => {
+    mixerRef.current?.update(delta)
+  })
 
   // Switch animations based on state
   useEffect(() => {
+    const am = actionsRef.current
+    if (!mixerRef.current || Object.keys(am).length === 0) return
+
     let targetAnim = 'CharacterArmature|Idle'
     if (running) targetAnim = 'CharacterArmature|Run'
     else if (walking) targetAnim = 'CharacterArmature|Walk'
@@ -772,29 +785,21 @@ function Character({ walking, running, moveSpeed = 0 }: { walking: boolean; runn
     if (currentAction.current === targetAnim) return
     currentAction.current = targetAnim
 
-    // Fade out all, fade in target
-    Object.values(actions).forEach(action => {
+    Object.values(am).forEach(action => {
       if (action) action.fadeOut(0.3)
     })
-    const next = actions[targetAnim]
+    const next = am[targetAnim]
     if (next) {
       next.reset().fadeIn(0.3).play()
     }
-  }, [walking, running, actions])
-
-  // Start idle animation on mount
-  useEffect(() => {
-    const idle = actions['CharacterArmature|Idle']
-    if (idle) {
-      idle.reset().play()
-      currentAction.current = 'CharacterArmature|Idle'
-    }
-  }, [actions])
+  }, [walking, running])
 
   return (
-    <group ref={groupRef} scale={[0.005, 0.005, 0.005]}>
-      <primitive object={model} />
-    </group>
+    <Clone
+      ref={cloneRef}
+      object={scene}
+      scale={0.005}
+    />
   )
 }
 
