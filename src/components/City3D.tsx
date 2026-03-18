@@ -4,6 +4,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls, Text, useGLTF, useAnimations, Clone } from '@react-three/drei'
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import * as THREE from 'three'
+import { SkeletonUtils } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import type { Building as BuildingType } from '@/lib/supabase'
 import { satoshisToBtc } from '@/lib/bitcoin'
 import { getCharacterFile, CHARACTER_LIST } from '@/lib/characters'
@@ -731,21 +732,13 @@ const WALKER_CHARACTER_ID = 'adventurer'
 const WALKER_CHARACTER_SCALE = 0.38
 
 function Character({ walking, running, moveSpeed = 0 }: { walking: boolean; running: boolean; moveSpeed?: number }) {
-  const cloneRef = useRef<THREE.Group>(null)
   const { scene, animations } = useGLTF(getCharacterFile(WALKER_CHARACTER_ID))
+  const clonedScene = useMemo(() => SkeletonUtils.clone(scene) as THREE.Group, [scene])
+  const { actions } = useAnimations(animations, clonedScene)
   const currentAction = useRef<string>('')
-  const mixerRef = useRef<THREE.AnimationMixer | null>(null)
-  const actionsRef = useRef<Record<string, THREE.AnimationAction>>({})
-  const initialized = useRef(false)
 
-  // After Clone mounts, set up AnimationMixer on the cloned scene
   useEffect(() => {
-    if (!cloneRef.current || initialized.current) return
-    initialized.current = true
-
-    const clonedRoot = cloneRef.current
-    // Brighten materials
-    clonedRoot.traverse((child: THREE.Object3D) => {
+    clonedScene.traverse((child: THREE.Object3D) => {
       if ((child as THREE.Mesh).isMesh) {
         const mesh = child as THREE.Mesh
         mesh.castShadow = true
@@ -753,34 +746,10 @@ function Character({ walking, running, moveSpeed = 0 }: { walking: boolean; runn
         mesh.frustumCulled = false
       }
     })
-
-    // Create mixer bound to the clone
-    const mixer = new THREE.AnimationMixer(clonedRoot)
-    mixerRef.current = mixer
-    const am: Record<string, THREE.AnimationAction> = {}
-    animations.forEach(clip => {
-      am[clip.name] = mixer.clipAction(clip)
-    })
-    actionsRef.current = am
-
-    // Start idle
-    const idle = am['CharacterArmature|Idle']
-    if (idle) {
-      idle.reset().play()
-      currentAction.current = 'CharacterArmature|Idle'
-    }
-  }, [animations])
-
-  // Update mixer every frame
-  useFrame((_, delta) => {
-    mixerRef.current?.update(delta)
-  })
+  }, [clonedScene])
 
   // Switch animations based on state
   useEffect(() => {
-    const am = actionsRef.current
-    if (!mixerRef.current || Object.keys(am).length === 0) return
-
     let targetAnim = 'CharacterArmature|Idle'
     if (running) targetAnim = 'CharacterArmature|Run'
     else if (walking) targetAnim = 'CharacterArmature|Walk'
@@ -788,19 +757,18 @@ function Character({ walking, running, moveSpeed = 0 }: { walking: boolean; runn
     if (currentAction.current === targetAnim) return
     currentAction.current = targetAnim
 
-    Object.values(am).forEach(action => {
+    Object.values(actions).forEach(action => {
       if (action) action.fadeOut(0.3)
     })
-    const next = am[targetAnim]
+    const next = actions[targetAnim]
     if (next) {
       next.reset().fadeIn(0.3).play()
     }
-  }, [walking, running])
+  }, [walking, running, actions])
 
   return (
-    <Clone
-      ref={cloneRef}
-      object={scene}
+    <primitive
+      object={clonedScene}
       scale={WALKER_CHARACTER_SCALE}
       position={[0, -0.34, 0]}
       rotation={[0, Math.PI, 0]}
