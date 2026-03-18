@@ -6,8 +6,8 @@ import { useMemo, Suspense } from 'react'
 import * as THREE from 'three'
 import { getCharacterFile } from '@/lib/characters'
 
-// Models are ~1.8 units tall with internal transforms. Scale to fit preview canvas.
-const PREVIEW_SCALE = 0.7 // ~1.26 units tall, fits in preview canvas
+// Use a slightly wider framing so the picker shows the full body instead of cropping at the legs.
+const PREVIEW_SCALE = 0.52
 function CharacterModelPreview({ characterId }: { characterId: string }) {
   const filePath = getCharacterFile(characterId)
   const { scene } = useGLTF(filePath)
@@ -33,7 +33,7 @@ function CharacterModelPreview({ characterId }: { characterId: string }) {
     <primitive
       object={clonedScene}
       scale={PREVIEW_SCALE}
-      position={[0, -0.65, 0]}
+      position={[0, -0.45, 0]}
       rotation={[0, Math.PI * 0.1, 0]}
     />
   )
@@ -63,7 +63,7 @@ export default function CharacterPreview({
       style={{ width: size, height: size, background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)' }}
     >
       <Canvas
-        camera={{ position: [0, 0.5, 3], fov: 35 }}
+        camera={{ position: [0, 0.45, 4], fov: 32 }}
         gl={{ antialias: true, alpha: true }}
         style={{ width: '100%', height: '100%' }}
       >
@@ -94,7 +94,7 @@ export function CharacterThumbnail({
       style={{ width: size, height: size, background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)' }}
     >
       <Canvas
-        camera={{ position: [0, 0.3, 3.2], fov: 30 }}
+        camera={{ position: [0, 0.35, 4.2], fov: 30 }}
         gl={{ antialias: true, alpha: true }}
         style={{ width: '100%', height: '100%' }}
       >

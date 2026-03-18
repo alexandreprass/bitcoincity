@@ -435,13 +435,6 @@ function Building({ data, onClick }: { data: BuildingType; onClick: (b: Building
         </mesh>
       )}
 
-      {/* Character model in front of building */}
-      {data.character && isNear && (
-        <group position={[0, 0.16, w / 2 + 0.8]}>
-          <CharacterModel characterId={data.character} scale={1.4} />
-        </group>
-      )}
-
       {/* Name label */}
       <Text
         position={[0, height + (tier >= 6 ? 2.2 : 0.8), 0]}
@@ -770,8 +763,7 @@ function Character({ walking, running, moveSpeed = 0 }: { walking: boolean; runn
     <primitive
       object={clonedScene}
       scale={WALKER_CHARACTER_SCALE}
-      position={[0, -0.34, 0]}
-      rotation={[0, Math.PI, 0]}
+      position={[0, -0.26, 0]}
     />
   )
 }
