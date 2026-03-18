@@ -727,9 +727,12 @@ function TieredCarBody({ tier }: { tier: number }) {
 
 // ==================== WALKING CHARACTER ====================
 
+const WALKER_CHARACTER_ID = 'adventurer'
+const WALKER_CHARACTER_SCALE = 0.38
+
 function Character({ walking, running, moveSpeed = 0 }: { walking: boolean; running: boolean; moveSpeed?: number }) {
   const cloneRef = useRef<THREE.Group>(null)
-  const { scene, animations } = useGLTF('/models/satoshi.glb')
+  const { scene, animations } = useGLTF(getCharacterFile(WALKER_CHARACTER_ID))
   const currentAction = useRef<string>('')
   const mixerRef = useRef<THREE.AnimationMixer | null>(null)
   const actionsRef = useRef<Record<string, THREE.AnimationAction>>({})
@@ -798,7 +801,9 @@ function Character({ walking, running, moveSpeed = 0 }: { walking: boolean; runn
     <Clone
       ref={cloneRef}
       object={scene}
-      scale={0.005}
+      scale={WALKER_CHARACTER_SCALE}
+      position={[0, -0.34, 0]}
+      rotation={[0, Math.PI, 0]}
     />
   )
 }
@@ -2067,8 +2072,8 @@ export default function City3D({ buildings, drivingMode = false, walkingMode = f
   )
 }
 
-// Preload the Satoshi GLB model
-useGLTF.preload('/models/satoshi.glb')
+// Preload the walking character model
+useGLTF.preload(getCharacterFile(WALKER_CHARACTER_ID))
 
 // Preload all character models
 CHARACTER_LIST.forEach(char => {
