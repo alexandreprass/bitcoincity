@@ -863,8 +863,8 @@ function Walker({ active, driverName, onPositionUpdate }: { active: boolean; dri
     const dt = Math.min(delta, 0.05)
 
     const running = k.has(' ')
-    const maxSpeed = running ? 0.25 : 0.12
-    const accel = running ? 0.015 : 0.008
+    const maxSpeed = running ? 0.12 : 0.055
+    const accel = running ? 0.008 : 0.004
 
     // Movement direction relative to camera angle
     // W = forward from camera's perspective, S = back, A = strafe left, D = strafe right
@@ -925,7 +925,7 @@ function Walker({ active, driverName, onPositionUpdate }: { active: boolean; dri
     walkerRef.current.position.set(newX, newY, newZ)
     walkerRef.current.rotation.y = playerRotRef.current
 
-    const walking = actualSpeed.current > 0.008
+    const walking = actualSpeed.current > 0.004
     setIsWalking(walking)
     setIsRunning(walking && running)
     setMoveSpeedState(actualSpeed.current)
