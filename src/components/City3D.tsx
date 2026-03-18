@@ -1,7 +1,7 @@
 'use client'
 
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { OrbitControls, Text, useGLTF, useAnimations } from '@react-three/drei'
+import { OrbitControls, Text, useGLTF, useAnimations, Clone } from '@react-three/drei'
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import * as THREE from 'three'
 import type { Building as BuildingType } from '@/lib/supabase'
@@ -302,65 +302,12 @@ function CharacterModel({ characterId, scale = 1.0 }: { characterId: string; sca
   const filePath = getCharacterFile(characterId)
   const { scene } = useGLTF(filePath)
 
-  useEffect(() => {
-    // DEBUG: Log model info on mount
-    console.log(`[CharacterModel] Loaded "${characterId}" from ${filePath}`)
-    console.log(`[CharacterModel] Scene children:`, scene.children.length)
-    const box = new THREE.Box3().setFromObject(scene)
-    const size = new THREE.Vector3()
-    box.getSize(size)
-    console.log(`[CharacterModel] Raw bounding box size:`, { x: size.x.toFixed(2), y: size.y.toFixed(2), z: size.z.toFixed(2) })
-    console.log(`[CharacterModel] Applied scale: ${CHARACTER_SCALE_BASE * scale} (base=${CHARACTER_SCALE_BASE} * scale=${scale})`)
-    console.log(`[CharacterModel] Final visible height: ~${(size.y * CHARACTER_SCALE_BASE * scale).toFixed(3)} units`)
-    let meshCount = 0
-    scene.traverse((child: any) => {
-      if (child.isMesh) meshCount++
-    })
-    console.log(`[CharacterModel] Mesh count:`, meshCount)
-  }, [scene, characterId, filePath, scale])
-
-  const clonedScene = useMemo(() => {
-    const clone = scene.clone(true)
-    let processedMeshes = 0
-    clone.traverse((child: any) => {
-      if (child.isMesh && child.material) {
-        // Clone material so each instance is independent
-        const mat = child.material.clone()
-        // Brighten base color (models are very dark in linear space)
-        if (mat.color) {
-          mat.color.multiplyScalar(2.5)
-        }
-        // Add emissive so characters are visible in the dark city scene
-        mat.emissive = new THREE.Color(0x444444)
-        mat.emissiveIntensity = 0.5
-        mat.side = THREE.DoubleSide // Ensure faces render from all angles
-        mat.needsUpdate = true
-        child.material = mat
-        child.castShadow = true
-        child.receiveShadow = true
-        child.visible = true
-        child.frustumCulled = false // Prevent culling
-        processedMeshes++
-      }
-    })
-    console.log(`[CharacterModel] Processed ${processedMeshes} meshes for "${characterId}"`)
-    return clone
-  }, [scene, characterId])
-
   return (
-    <group>
-      {/* DEBUG: Red box to confirm position is correct - REMOVE AFTER FIXING */}
-      <mesh position={[0, 0.5, 0]}>
-        <boxGeometry args={[0.3, 1.0, 0.3]} />
-        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={0.8} />
-      </mesh>
-      <primitive
-        object={clonedScene}
-        scale={CHARACTER_SCALE_BASE * scale}
-        rotation={[0, Math.PI, 0]}
-        frustumCulled={false}
-      />
-    </group>
+    <Clone
+      object={scene}
+      scale={CHARACTER_SCALE_BASE * scale}
+      rotation={[0, Math.PI, 0]}
+    />
   )
 }
 
@@ -487,21 +434,12 @@ function Building({ data, onClick }: { data: BuildingType; onClick: (b: Building
         </mesh>
       )}
 
-      {/* Character model in front of building — DEBUG */}
-      {(() => {
-        if (!data.character) {
-          // Log only first building missing character
-          if (data.position_x === 0) console.log(`[Building DEBUG] "${data.display_name || data.username}" has NO character field. data.character=${data.character}`)
-          return null
-        }
-        if (!isNear) return null
-        console.log(`[Building DEBUG] Rendering character "${data.character}" for "${data.display_name || data.username}" at [${data.position_x}, ${data.position_z}], isNear=${isNear}`)
-        return (
-          <group position={[0, 0.16, w / 2 + 0.8]}>
-            <CharacterModel characterId={data.character} scale={1.4} />
-          </group>
-        )
-      })()}
+      {/* Character model in front of building */}
+      {data.character && isNear && (
+        <group position={[0, 0.16, w / 2 + 0.8]}>
+          <CharacterModel characterId={data.character} scale={1.4} />
+        </group>
+      )}
 
       {/* Name label */}
       <Text
