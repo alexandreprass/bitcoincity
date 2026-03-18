@@ -33,7 +33,7 @@ function CharacterModelPreview({ characterId }: { characterId: string }) {
     <primitive
       object={clonedScene}
       scale={PREVIEW_SCALE}
-      position={[0, -0.2, 0]}
+      position={[0, -0.36, 0]}
       rotation={[0, Math.PI * 0.1, 0]}
     />
   )
