@@ -4,7 +4,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls, Text, useGLTF, useAnimations, Clone } from '@react-three/drei'
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import * as THREE from 'three'
-import { SkeletonUtils } from 'three/examples/jsm/utils/SkeletonUtils.js'
+import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import type { Building as BuildingType } from '@/lib/supabase'
 import { satoshisToBtc } from '@/lib/bitcoin'
 import { getCharacterFile, CHARACTER_LIST } from '@/lib/characters'
@@ -733,7 +733,7 @@ const WALKER_CHARACTER_SCALE = 0.38
 
 function Character({ walking, running, moveSpeed = 0 }: { walking: boolean; running: boolean; moveSpeed?: number }) {
   const { scene, animations } = useGLTF(getCharacterFile(WALKER_CHARACTER_ID))
-  const clonedScene = useMemo(() => SkeletonUtils.clone(scene) as THREE.Group, [scene])
+  const clonedScene = useMemo(() => cloneSkinned(scene) as THREE.Group, [scene])
   const { actions } = useAnimations(animations, clonedScene)
   const currentAction = useRef<string>('')
 
