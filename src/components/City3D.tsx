@@ -333,11 +333,13 @@ function CharacterModel({ characterId, scale = 1.0 }: { characterId: string; sca
         // Add emissive so characters are visible in the dark city scene
         mat.emissive = new THREE.Color(0x444444)
         mat.emissiveIntensity = 0.5
+        mat.side = THREE.DoubleSide // Ensure faces render from all angles
         mat.needsUpdate = true
         child.material = mat
         child.castShadow = true
         child.receiveShadow = true
         child.visible = true
+        child.frustumCulled = false // Prevent culling
         processedMeshes++
       }
     })
@@ -346,11 +348,19 @@ function CharacterModel({ characterId, scale = 1.0 }: { characterId: string; sca
   }, [scene, characterId])
 
   return (
-    <primitive
-      object={clonedScene}
-      scale={CHARACTER_SCALE_BASE * scale}
-      rotation={[0, Math.PI, 0]}
-    />
+    <group>
+      {/* DEBUG: Red box to confirm position is correct - REMOVE AFTER FIXING */}
+      <mesh position={[0, 0.5, 0]}>
+        <boxGeometry args={[0.3, 1.0, 0.3]} />
+        <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={0.8} />
+      </mesh>
+      <primitive
+        object={clonedScene}
+        scale={CHARACTER_SCALE_BASE * scale}
+        rotation={[0, Math.PI, 0]}
+        frustumCulled={false}
+      />
+    </group>
   )
 }
 
