@@ -299,7 +299,25 @@ const LOD_DISTANCE = 30 // effects only render within this distance from camera
 function CharacterModel({ characterId, scale = 0.8 }: { characterId: string; scale?: number }) {
   const filePath = getCharacterFile(characterId)
   const { scene } = useGLTF(filePath)
-  const clonedScene = useMemo(() => scene.clone(true), [scene])
+  const clonedScene = useMemo(() => {
+    const clone = scene.clone(true)
+    clone.traverse((child: any) => {
+      if (child.isMesh && child.material) {
+        // Clone material so each instance is independent
+        const mat = child.material.clone()
+        // Ensure materials are visible in the dark city scene
+        if (!mat.emissive) mat.emissive = new THREE.Color(0x000000)
+        mat.emissive = new THREE.Color(0x333333)
+        mat.emissiveIntensity = 0.4
+        // Make sure the material responds to scene lights
+        mat.needsUpdate = true
+        child.material = mat
+        child.castShadow = true
+        child.receiveShadow = true
+      }
+    })
+    return clone
+  }, [scene])
 
   return (
     <primitive
@@ -322,14 +340,15 @@ function Building({ data, onClick }: { data: BuildingType; onClick: (b: Building
   const [hovered, setHovered] = useState(false)
   const [isNear, setIsNear] = useState(false)
   const groupRef = useRef<THREE.Group>(null)
+  const frameCounter = useRef(0)
   const w = BUILDING_WIDTH
 
   // Check distance from camera every few frames for LOD
-  useFrame(({ camera }, _, xrFrame) => {
+  useFrame(({ camera }) => {
     if (!groupRef.current) return
-    // Check every 10 frames to save CPU
-    const frame = Math.round(camera.position.x * 100) % 10
-    if (frame !== 0 && !isNear) return
+    // Check every 15 frames to save CPU
+    frameCounter.current++
+    if (frameCounter.current % 15 !== 0 && !isNear) return
     const dx = camera.position.x - x
     const dz = camera.position.z - z
     const dist = Math.sqrt(dx * dx + dz * dz)
