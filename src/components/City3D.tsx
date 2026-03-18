@@ -721,11 +721,12 @@ function TieredCarBody({ tier }: { tier: number }) {
 
 // ==================== WALKING CHARACTER ====================
 
-const WALKER_CHARACTER_ID = 'adventurer'
 const WALKER_CHARACTER_SCALE = 0.38
+const WALKER_DEFAULT_CHARACTER = 'adventurer'
 
-function Character({ walking, running, moveSpeed = 0 }: { walking: boolean; running: boolean; moveSpeed?: number }) {
-  const { scene, animations } = useGLTF(getCharacterFile(WALKER_CHARACTER_ID))
+function Character({ walking, running, moveSpeed = 0, characterId }: { walking: boolean; running: boolean; moveSpeed?: number; characterId?: string }) {
+  const charId = characterId || WALKER_DEFAULT_CHARACTER
+  const { scene, animations } = useGLTF(getCharacterFile(charId))
   const clonedScene = useMemo(() => cloneSkinned(scene) as THREE.Group, [scene])
   const { actions } = useAnimations(animations, clonedScene)
   const currentAction = useRef<string>('')
@@ -770,7 +771,7 @@ function Character({ walking, running, moveSpeed = 0 }: { walking: boolean; runn
 
 // ==================== WALKER (Walking Mode) ====================
 
-function Walker({ active, driverName, onPositionUpdate }: { active: boolean; driverName?: string; onPositionUpdate?: (x: number, y: number, z: number, rot: number, mode: string) => void }) {
+function Walker({ active, driverName, characterId, onPositionUpdate }: { active: boolean; driverName?: string; characterId?: string; onPositionUpdate?: (x: number, y: number, z: number, rot: number, mode: string) => void }) {
   const walkerRef = useRef<THREE.Group>(null)
   const posRef = useRef<[number, number, number]>([0, 0.25, 8])
   const playerRotRef = useRef(0) // player facing direction
@@ -954,7 +955,7 @@ function Walker({ active, driverName, onPositionUpdate }: { active: boolean; dri
 
   return (
     <group ref={walkerRef} position={[0, 0.25, 8]}>
-      <Character walking={isWalking} running={isRunning} moveSpeed={moveSpeedState} />
+      <Character walking={isWalking} running={isRunning} moveSpeed={moveSpeedState} characterId={characterId} />
       {driverName && (
         <Text
           position={[0, 1.15, 0]}
@@ -1815,7 +1816,7 @@ function NitroUI({ charges, recharging }: { charges: number; recharging: boolean
 
 // ==================== MAIN COMPONENT ====================
 
-export default function City3D({ buildings, drivingMode = false, walkingMode = false, driverName = '', userTier = 1, supabaseClient }: { buildings: BuildingType[]; drivingMode?: boolean; walkingMode?: boolean; driverName?: string; userTier?: number; supabaseClient?: any }) {
+export default function City3D({ buildings, drivingMode = false, walkingMode = false, driverName = '', userTier = 1, userCharacter, supabaseClient }: { buildings: BuildingType[]; drivingMode?: boolean; walkingMode?: boolean; driverName?: string; userTier?: number; userCharacter?: string; supabaseClient?: any }) {
   const [selectedBuilding, setSelectedBuilding] = useState<BuildingType | null>(null)
   const [nitroCharges, setNitroCharges] = useState(2)
   const [nitroRecharging, setNitroRecharging] = useState(false)
@@ -2009,7 +2010,7 @@ export default function City3D({ buildings, drivingMode = false, walkingMode = f
         ))}
 
         <Car active={drivingMode} driverName={driverName} userTier={userTier} ghostCarsRef={ghostCarsRef} onNitroUpdate={handleNitroUpdate} onPositionUpdate={handlePositionUpdate} />
-        <Walker active={walkingMode} driverName={driverName} onPositionUpdate={handlePositionUpdate} />
+        <Walker active={walkingMode} driverName={driverName} characterId={userCharacter} onPositionUpdate={handlePositionUpdate} />
         <GhostCars ghosts={ghostCars} myCarPos={myCarPosRef} />
 
         {!drivingMode && !walkingMode && followingNPC === null && (
@@ -2031,9 +2032,6 @@ export default function City3D({ buildings, drivingMode = false, walkingMode = f
     </div>
   )
 }
-
-// Preload the walking character model
-useGLTF.preload(getCharacterFile(WALKER_CHARACTER_ID))
 
 // Preload all character models
 CHARACTER_LIST.forEach(char => {

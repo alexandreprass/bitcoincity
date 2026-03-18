@@ -18,6 +18,7 @@ export default function HomePage() {
   const [userId, setUserId] = useState('')
   const [drivingMode, setDrivingMode] = useState(false)
   const [walkingMode, setWalkingMode] = useState(false)
+  const [userCharacter, setUserCharacter] = useState('')
 
   const fetchBuildings = () => {
     fetch('/api/buildings')
@@ -40,6 +41,10 @@ export default function HomePage() {
       if (data.user) {
         setUserName(data.user.user_metadata?.username || data.user.user_metadata?.display_name || data.user.email?.split('@')[0] || 'Anon')
         setUserId(data.user.id)
+        // Fetch user's selected character from profile
+        supabase.from('profiles').select('character').eq('id', data.user.id).single().then(({ data: profile }) => {
+          if (profile?.character) setUserCharacter(profile.character)
+        })
       }
     })
 
@@ -162,7 +167,7 @@ export default function HomePage() {
           </div>
         </div>
       ) : (
-        <City3D buildings={buildings} drivingMode={drivingMode} walkingMode={walkingMode} driverName={userName} userTier={buildings.find(b => b.user_id === userId)?.height || 1} supabaseClient={supabase} />
+        <City3D buildings={buildings} drivingMode={drivingMode} walkingMode={walkingMode} driverName={userName} userTier={buildings.find(b => b.user_id === userId)?.height || 1} userCharacter={userCharacter} supabaseClient={supabase} />
       )}
 
       {/* Mode buttons - only for logged in users */}
