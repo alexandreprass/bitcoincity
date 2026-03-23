@@ -33,7 +33,7 @@ export default function Navbar() {
 
         <div className="flex items-center gap-4">
           <a
-            href="https://t.me/bitcoincityx"
+            href="https://t.me/bitcoincity_x"
             target="_blank"
             rel="noopener noreferrer"
             className="text-gray-400 hover:text-[#29a9eb] transition-colors"
